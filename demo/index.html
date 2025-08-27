@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Storage LRU Cleaner - Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .panel {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        input, select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .stats {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #ffc107, #dc3545);
+            transition: width 0.3s ease;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .storage-items {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        .storage-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .storage-item:last-child {
+            border-bottom: none;
+        }
+        .item-info {
+            flex: 1;
+            margin-right: 10px;
+        }
+        .item-key {
+            font-weight: bold;
+            color: #495057;
+        }
+        .item-size {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .config-section {
+            margin: 15px 0;
+            padding: 15px;
+            background: #fff;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .config-row {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            gap: 10px;
+        }
+        .config-label {
+            min-width: 150px;
+            font-weight: 500;
+        }
+        h1, h2, h3 {
+            color: #343a40;
+        }
+        .alert {
+            padding: 12px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .alert-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .alert-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .alert-danger {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧹 Browser Storage LRU Cleaner - 演示</h1>
+    <div class="alert alert-info">
+        <strong>说明：</strong>这是一个基于LRU算法的浏览器存储自动清理SDK演示。支持localStorage和IndexedDB，通过代理模式实现业务无感知的自动清理。
+    </div>
+
+    <div class="container">
+        <!-- 左侧：控制面板 -->
+        <div class="panel">
+            <h3>🎛️ 控制面板</h3>
+
+            <!-- 存储类型选择 -->
+            <div class="config-section">
+                <h4>存储类型</h4>
+                <div class="config-row">
+                    <label class="config-label">存储类型：</label>
+                    <select id="storageType">
+                        <option value="localStorage">localStorage</option>
+                        <option value="indexedDB">IndexedDB</option>
+                    </select>
+                    <button onclick="switchStorageType()">切换</button>
+                </div>
+            </div>
+
+            <!-- 配置设置 -->
+            <div class="config-section">
+                <h4>清理配置</h4>
+                <div class="config-row">
+                    <label class="config-label">最大存储大小：</label>
+                    <input type="number" id="maxSize" value="1024" min="100" max="10240">
+                    <span>KB</span>
+                </div>
+                <div class="config-row">
+                    <label class="config-label">清理阈值：</label>
+                    <input type="range" id="cleanupThreshold" min="0.5" max="1" step="0.1" value="0.8">
+                    <span id="thresholdValue">80%</span>
+                </div>
+                <div class="config-row">
+                    <label class="config-label">清理比例：</label>
+                    <input type="range" id="cleanupRatio" min="0.1" max="0.5" step="0.1" value="0.3">
+                    <span id="ratioValue">30%</span>
+                </div>
+                <div class="config-row">
+                    <label class="config-label">自动清理：</label>
+                    <input type="checkbox" id="autoCleanup" checked>
+                    <label for="autoCleanup">启用</label>
+                </div>
+                <div class="config-row">
+                    <label class="config-label">调试模式：</label>
+                    <input type="checkbox" id="debugMode">
+                    <label for="debugMode">启用</label>
+                </div>
+                <button onclick="updateConfig()">应用配置</button>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="config-section">
+                <h4>操作</h4>
+                <div class="controls">
+                    <button onclick="installProxy()">安装代理</button>
+                    <button onclick="uninstallProxy()">卸载代理</button>
+                    <button onclick="manualCleanup()">手动清理</button>
+                    <button onclick="checkHealth()">健康检查</button>
+                </div>
+                <div class="controls">
+                    <button onclick="generateTestData()">生成测试数据</button>
+                    <button onclick="simulateUsage()">模拟使用</button>
+                    <button class="danger" onclick="clearAllData()">清空所有数据</button>
+                </div>
+            </div>
+
+            <!-- 数据操作 -->
+            <div class="config-section">
+                <h4>数据操作</h4>
+                <div class="config-row">
+                    <input type="text" id="newKey" placeholder="键名" style="flex: 1;">
+                    <input type="text" id="newValue" placeholder="值" style="flex: 2;">
+                    <button onclick="addItem()">添加</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：状态面板 -->
+        <div class="panel">
+            <h3>📊 状态监控</h3>
+
+            <!-- 存储统计 -->
+            <div class="stats">
+                <h4>存储统计</h4>
+                <div class="stats-item">
+                    <span>总大小：</span>
+                    <span id="totalSize">0 KB</span>
+                </div>
+                <div class="stats-item">
+                    <span>项目数量：</span>
+                    <span id="itemCount">0</span>
+                </div>
+                <div class="stats-item">
+                    <span>使用率：</span>
+                    <span id="usageRatio">0%</span>
+                </div>
+                <div class="stats-item">
+                    <span>清理次数：</span>
+                    <span id="cleanupCount">0</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- 存储项列表 -->
+            <div class="config-section">
+                <h4>存储项 <button onclick="refreshItems()" style="font-size: 12px; padding: 4px 8px;">刷新</button></h4>
+                <div class="storage-items" id="storageItems">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+
+            <!-- 健康状态 -->
+            <div id="healthStatus" class="config-section" style="display: none;">
+                <h4>健康状态</h4>
+                <div id="healthContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 日志面板 -->
+    <div class="panel" style="margin-top: 20px;">
+        <h3>📝 操作日志 <button onclick="clearLog()" style="font-size: 12px; padding: 4px 8px;">清空</button></h3>
+        <div class="log" id="logContainer"></div>
+    </div>
+
+    <script type="module" src="demo.js"></script>
+</body>
+</html>
