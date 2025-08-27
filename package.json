@@ -11,7 +11,7 @@
     "prepublish": "pnpm build",
     "release": "bumpp && pnpm publish",
     "commit": "git-cz",
-    "prepare": "husky install"
+    "prepare": "simple-git-hooks"
   },
   "keywords": [
     "localStorage",
@@ -30,10 +30,14 @@
     "git-cz": "^4.9.0",
     "http-server": "^14.1.1",
     "husky": "^9.1.7",
+    "simple-git-hooks": "^2.13.1",
     "tsdown": "^0.14.2",
     "typescript": "^5.0.0"
   },
   "files": [
     "dist/**/*"
-  ]
+  ],
+  "simple-git-hooks": {
+    "prepare-commit-msg": "exec < /dev/tty && pnpm commit"
+  }
 }
