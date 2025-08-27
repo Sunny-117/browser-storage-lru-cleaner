@@ -13,6 +13,7 @@ export class LRUStrategy implements ICleanupStrategy {
     debug: boolean;
   };
   private accessRecordsKey: string;
+  private debugRecordsKey: string;
 
   constructor(
     storageAdapter: IStorageAdapter,
@@ -29,6 +30,7 @@ export class LRUStrategy implements ICleanupStrategy {
       debug: config.debug || false
     };
     this.accessRecordsKey = Utils.generateStorageKey('lru', 'access_records');
+    this.debugRecordsKey = Utils.generateStorageKey('lru', 'debug_records');
 
     this.loadAccessRecords();
   }
@@ -270,11 +272,25 @@ export class LRUStrategy implements ICleanupStrategy {
    */
   private async saveAccessRecords(): Promise<void> {
     try {
-      const data = Utils.compressAccessRecords(this.accessRecords);
-      await this.storageAdapter.setItem(this.accessRecordsKey, data);
+      // 使用新的高级压缩算法
+      const result = Utils.compressAccessRecords(this.accessRecords, {
+        debug: this.config.debug,
+        maxEntries: 500 // 限制最大记录数，防止无限增长
+      });
 
-      if (this.config.debug) {
-        console.log(`[LRU] Saved ${Object.keys(this.accessRecords).length} access records`);
+      // 保存压缩后的数据
+      await this.storageAdapter.setItem(this.accessRecordsKey, result.compressed);
+
+      // 如果是调试模式，保存调试信息
+      if (this.config.debug && result.debug) {
+        await this.storageAdapter.setItem(this.debugRecordsKey, result.debug);
+
+        console.log(`[LRU] Saved access records with compression:`);
+        const debugInfo = JSON.parse(result.debug);
+        console.log(`  - Original: ${debugInfo.originalCount} records`);
+        console.log(`  - Compressed: ${debugInfo.compressedCount} records`);
+        console.log(`  - Size reduction: ${debugInfo.compressionRatio}`);
+        console.log(`  - Storage size: ${Utils.formatBytes(result.compressed.length)}`);
       }
     } catch (error) {
       console.warn('[LRU] Failed to save access records:', error);
@@ -296,6 +312,8 @@ export class LRUStrategy implements ICleanupStrategy {
     oldestAccess: number;
     newestAccess: number;
     averageAccessCount: number;
+    storageSize: number;
+    compressionRatio?: string;
   } {
     const records = Object.values(this.accessRecords);
 
@@ -304,18 +322,117 @@ export class LRUStrategy implements ICleanupStrategy {
         totalRecords: 0,
         oldestAccess: 0,
         newestAccess: 0,
-        averageAccessCount: 0
+        averageAccessCount: 0,
+        storageSize: 0
       };
     }
 
     const accessTimes = records.map(r => r.lastAccess);
     const accessCounts = records.map(r => r.accessCount);
 
+    // 计算存储大小
+    const originalSize = JSON.stringify(this.accessRecords).length;
+    const compressedResult = Utils.compressAccessRecords(this.accessRecords);
+    const compressedSize = compressedResult.compressed.length;
+
     return {
       totalRecords: records.length,
       oldestAccess: Math.min(...accessTimes),
       newestAccess: Math.max(...accessTimes),
-      averageAccessCount: accessCounts.reduce((a, b) => a + b, 0) / accessCounts.length
+      averageAccessCount: accessCounts.reduce((a, b) => a + b, 0) / accessCounts.length,
+      storageSize: compressedSize,
+      compressionRatio: ((compressedSize / originalSize) * 100).toFixed(2) + '%'
     };
+  }
+
+  /**
+   * 获取调试信息
+   */
+  async getDebugInfo(): Promise<any> {
+    if (!this.config.debug) {
+      return null;
+    }
+
+    try {
+      const debugData = await this.storageAdapter.getItem(this.debugRecordsKey);
+      return debugData ? JSON.parse(debugData) : null;
+    } catch (error) {
+      console.warn('[LRU] Failed to get debug info:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 手动触发压缩优化
+   */
+  async optimizeStorage(): Promise<{
+    before: { records: number; size: number };
+    after: { records: number; size: number };
+    saved: number;
+  }> {
+    const beforeStats = this.getAccessStats();
+    const beforeSize = beforeStats.storageSize;
+    const beforeRecords = beforeStats.totalRecords;
+
+    // 清理过期记录
+    this.cleanupExpiredRecords();
+
+    // 重新保存以触发压缩
+    await this.saveAccessRecords();
+
+    const afterStats = this.getAccessStats();
+    const afterSize = afterStats.storageSize;
+    const afterRecords = afterStats.totalRecords;
+
+    const result = {
+      before: { records: beforeRecords, size: beforeSize },
+      after: { records: afterRecords, size: afterSize },
+      saved: beforeSize - afterSize
+    };
+
+    if (this.config.debug) {
+      console.log('[LRU] Storage optimization completed:', result);
+    }
+
+    return result;
+  }
+
+  /**
+   * 获取最可能被删除的键列表（用于调试）
+   */
+  getCleanupCandidates(limit: number = 10): Array<{
+    key: string;
+    lastAccess: string;
+    accessCount: number;
+    size: number;
+    priority: number;
+  }> {
+    const candidates = Object.entries(this.accessRecords)
+      .map(([key, record]) => ({
+        key,
+        lastAccess: new Date(record.lastAccess).toISOString(),
+        accessCount: record.accessCount,
+        size: record.size,
+        priority: this.calculateCleanupPriority(record)
+      }))
+      .sort((a, b) => b.priority - a.priority) // 优先级高的先删除
+      .slice(0, limit);
+
+    return candidates;
+  }
+
+  /**
+   * 计算清理优先级
+   */
+  private calculateCleanupPriority(record: IAccessRecord): number {
+    const now = Date.now();
+    const timeSinceLastAccess = now - record.lastAccess;
+    const daysSinceAccess = timeSinceLastAccess / (24 * 60 * 60 * 1000);
+
+    // 优先级计算：时间权重 + 访问频率权重
+    const timeWeight = Math.min(daysSinceAccess, 30); // 最多30天权重
+    const accessWeight = Math.max(0, 10 - record.accessCount); // 访问次数越少权重越高
+
+    return timeWeight + accessWeight;
   }
 }
