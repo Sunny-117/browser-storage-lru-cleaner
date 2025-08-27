@@ -9,7 +9,9 @@
     "dev": "tsdown --watch",
     "demo": "http-server demo -p 8080",
     "prepublish": "pnpm build",
-    "release": "bumpp && pnpm publish"
+    "release": "bumpp && pnpm publish",
+    "commit": "git-cz",
+    "prepare": "husky install"
   },
   "keywords": [
     "localStorage",
@@ -25,7 +27,9 @@
   "devDependencies": {
     "@types/node": "^18.15.0",
     "bumpp": "^10.2.3",
+    "git-cz": "^4.9.0",
     "http-server": "^14.1.1",
+    "husky": "^9.1.7",
     "tsdown": "^0.14.2",
     "typescript": "^5.0.0"
   },
