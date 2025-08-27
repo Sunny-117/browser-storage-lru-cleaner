@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { createLocalStorageCleaner } from 'browser-storage-lru-cleaner';
 
 // 创建清理器实例 - 使用很小的容量便于快速看到清理效果

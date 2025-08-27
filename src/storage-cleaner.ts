@@ -147,6 +147,16 @@ export class StorageCleaner {
           };
         }
 
+        if (prop === 'length') {
+          return target.length;
+        }
+
+        if (prop === 'key') {
+          return function(index: number) {
+            return target.key(index);
+          };
+        }
+
         return Reflect.get(target, prop, receiver);
       }
     });
