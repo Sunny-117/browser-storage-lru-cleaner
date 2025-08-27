@@ -1,14 +1,12 @@
 {
   "name": "browser-storage-lru-cleaner",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "A TypeScript SDK for automatic browser storage cleanup using LRU algorithm",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/index.mjs",
+  "types": "dist/index.d.mts",
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "test": "jest",
-    "test:watch": "jest --watch",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
     "demo": "http-server demo -p 8080"
   },
   "keywords": [
@@ -20,15 +18,12 @@
     "browser",
     "cleanup"
   ],
-  "author": "",
+  "author": "Sunny-117",
   "license": "MIT",
   "devDependencies": {
-    "@types/jest": "^29.5.0",
     "@types/node": "^18.15.0",
     "http-server": "^14.1.1",
-    "jest": "^29.5.0",
-    "jest-environment-jsdom": "^29.5.0",
-    "ts-jest": "^29.1.0",
+    "tsdown": "^0.14.2",
     "typescript": "^5.0.0"
   },
   "files": [

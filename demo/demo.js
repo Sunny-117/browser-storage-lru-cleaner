@@ -1,5 +1,5 @@
 // 模拟导入SDK（实际使用时应该从构建后的文件导入）
-// import { createLocalStorageCleaner, createIndexedDBCleaner } from '../dist/index.js';
+import { createLocalStorageCleaner, createIndexedDBCleaner } from '../dist/index.mjs';
 
 // 演示用的简化版本
 class DemoStorageCleaner {
