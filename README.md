@@ -891,8 +891,8 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 ## 📞 支持
 
 - 📧 Email: support@example.com
-- 🐛 Issues: [GitHub Issues](https://github.com/your-repo/issues)
-- 📖 文档: [在线文档](https://your-docs-site.com)
+- 🐛 Issues: [GitHub Issues](https://github.com/Sunny-117/browser-storage-lru-cleaner)
+- 📖 文档: [在线文档](http://deepwiki.com/Sunny-117/browser-storage-lru-cleaner)
 
 ---
 
