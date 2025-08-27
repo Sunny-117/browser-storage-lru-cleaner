@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# 检查是否通过 git commit -m 调用
+# 通过检查命令行参数来判断
+if ps -o args= $PPID | grep -q "git commit -m"; then
+  echo ""
+  echo "🚫 直接使用 git commit -m 被禁止！"
+  echo ""
+  echo "请使用以下方式之一进行提交："
+  echo "  📝 pnpm commit"
+  echo "  📝 npm run commit"
+  echo "  📝 git cz"
+  echo ""
+  echo "这将启动交互式提交流程，确保提交信息符合规范。"
+  echo ""
+  exit 1
+fi
