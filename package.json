@@ -7,7 +7,9 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
-    "demo": "http-server demo -p 8080"
+    "demo": "http-server demo -p 8080",
+    "prepublish": "pnpm build",
+    "release": "bumpp && pnpm publish"
   },
   "keywords": [
     "localStorage",
@@ -22,6 +24,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^18.15.0",
+    "bumpp": "^10.2.3",
     "http-server": "^14.1.1",
     "tsdown": "^0.14.2",
     "typescript": "^5.0.0"
