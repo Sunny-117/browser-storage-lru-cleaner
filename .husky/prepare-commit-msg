@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# 获取参数
+COMMIT_SOURCE=$2
+
+# 拦截通过 git commit -m 的直接提交
+if [ "$COMMIT_SOURCE" = "message" ]; then
+  echo ""
+  echo "🚫 直接使用 git commit -m 被禁止！"
+  echo ""
+  echo "请使用以下方式之一进行提交："
+  echo "  📝 pnpm commit"
+  echo "  📝 npm run commit"
+  echo "  📝 git cz"
+  echo ""
+  echo "这将启动交互式提交流程，确保提交信息符合规范。"
+  echo ""
+  exit 1
+fi
+
+# 对于普通的 git commit（无 -m），启动 git-cz
+if [ -z "$COMMIT_SOURCE" ]; then
+  exec < /dev/tty && git cz --hook || true
+fi

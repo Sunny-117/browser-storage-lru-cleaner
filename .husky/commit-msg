@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# 读取提交信息
+commit_msg=$(cat $1)
+
+# 检查提交信息格式 (type(scope): description)
+commit_regex='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .{1,100}'
+
+if ! echo "$commit_msg" | grep -qE "$commit_regex"; then
+  echo ""
+  echo "🚫 提交信息格式不正确！"
+  echo ""
+  echo "正确格式: type(scope): description"
+  echo ""
+  echo "示例:"
+  echo "  feat: 添加新功能"
+  echo "  fix(auth): 修复登录问题"
+  echo "  docs: 更新README文档"
+  echo ""
+  echo "允许的类型: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+  echo ""
+  echo "请使用 'pnpm commit' 或 'git cz' 来生成规范的提交信息。"
+  echo ""
+  exit 1
+fi
+
+echo "✅ 提交信息格式正确"

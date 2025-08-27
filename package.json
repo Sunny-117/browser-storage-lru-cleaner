@@ -11,7 +11,12 @@
     "prepublish": "pnpm build",
     "release": "bumpp && pnpm publish",
     "commit": "git-cz",
-    "prepare": "simple-git-hooks"
+    "prepare": "husky install",
+    "playground:dev": "cd playground && pnpm dev",
+    "playground:build": "pnpm build && cd playground && pnpm build",
+    "playground:preview": "./preview.sh",
+    "deploy": "./deploy.sh",
+    "deploy:simple": "./deploy-simple.sh"
   },
   "keywords": [
     "localStorage",
@@ -29,15 +34,71 @@
     "bumpp": "^10.2.3",
     "git-cz": "^4.9.0",
     "http-server": "^14.1.1",
-    "husky": "^9.1.7",
-    "simple-git-hooks": "^2.13.1",
+    "husky": "^8.0.0",
     "tsdown": "^0.14.2",
     "typescript": "^5.0.0"
   },
   "files": [
     "dist/**/*"
   ],
-  "simple-git-hooks": {
-    "prepare-commit-msg": "exec < /dev/tty && pnpm commit"
+  "config": {
+    "commitizen": {
+      "path": "git-cz"
+    }
+  },
+  "git-cz": {
+    "maxHeaderWidth": 100,
+    "maxLineWidth": 100,
+    "defaultType": "",
+    "defaultScope": "",
+    "defaultSubject": "",
+    "defaultBody": "",
+    "defaultIssues": "",
+    "types": {
+      "feat": {
+        "description": "新功能 (A new feature)",
+        "title": "Features"
+      },
+      "fix": {
+        "description": "修复 (A bug fix)",
+        "title": "Bug Fixes"
+      },
+      "docs": {
+        "description": "文档 (Documentation only changes)",
+        "title": "Documentation"
+      },
+      "style": {
+        "description": "格式 (Changes that do not affect the meaning of the code)",
+        "title": "Styles"
+      },
+      "refactor": {
+        "description": "重构 (A code change that neither fixes a bug nor adds a feature)",
+        "title": "Code Refactoring"
+      },
+      "perf": {
+        "description": "性能优化 (A code change that improves performance)",
+        "title": "Performance Improvements"
+      },
+      "test": {
+        "description": "测试 (Adding missing tests or correcting existing tests)",
+        "title": "Tests"
+      },
+      "build": {
+        "description": "构建 (Changes that affect the build system or external dependencies)",
+        "title": "Builds"
+      },
+      "ci": {
+        "description": "CI/CD (Changes to our CI configuration files and scripts)",
+        "title": "Continuous Integrations"
+      },
+      "chore": {
+        "description": "其他 (Other changes that don't modify src or test files)",
+        "title": "Chores"
+      },
+      "revert": {
+        "description": "回滚 (Reverts a previous commit)",
+        "title": "Reverts"
+      }
+    }
   }
 }
