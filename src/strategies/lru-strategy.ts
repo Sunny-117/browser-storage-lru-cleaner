@@ -94,8 +94,8 @@ export class LRUStrategy implements ICleanupStrategy {
       return [];
     }
 
-    // 更新键的大小信息
-    this.updateKeySizes(cleanableKeys);
+    // 更新键的大小信息（同步版本）
+    this.updateKeySizesSync(cleanableKeys);
 
     // 按LRU算法排序：最近最少使用的在前
     const sortedKeys = this.sortKeysByLRU(cleanableKeys);
@@ -170,7 +170,45 @@ export class LRUStrategy implements ICleanupStrategy {
   }
 
   /**
-   * 更新键的大小信息
+   * 更新键的大小信息（同步版本）
+   */
+  private updateKeySizesSync(keys: string[]): void {
+    for (const key of keys) {
+      if (this.accessRecords[key]) {
+        try {
+          // 对于localStorage适配器，getItemSize是同步的
+          const size = this.storageAdapter.getItemSize(key);
+          if (typeof size === 'number') {
+            this.accessRecords[key].size = size;
+          } else {
+            // 如果是Promise，使用估算值
+            this.accessRecords[key].size = this.estimateItemSize(key);
+          }
+        } catch (error) {
+          // 如果获取大小失败，使用估算值
+          this.accessRecords[key].size = this.estimateItemSize(key);
+        }
+      }
+    }
+  }
+
+  /**
+   * 估算项目大小
+   */
+  private estimateItemSize(key: string): number {
+    try {
+      const value = this.storageAdapter.getItem(key);
+      if (typeof value === 'string') {
+        return new Blob([key + value]).size;
+      }
+      return 1024; // 默认1KB
+    } catch (error) {
+      return 1024; // 默认1KB
+    }
+  }
+
+  /**
+   * 更新键的大小信息（异步版本）
    */
   private async updateKeySizes(keys: string[]): Promise<void> {
     for (const key of keys) {
@@ -179,8 +217,8 @@ export class LRUStrategy implements ICleanupStrategy {
           const size = await this.storageAdapter.getItemSize(key);
           this.accessRecords[key].size = size;
         } catch (error) {
-          // 如果获取大小失败，使用默认值
-          this.accessRecords[key].size = 1024; // 1KB 默认大小
+          // 如果获取大小失败，使用估算值
+          this.accessRecords[key].size = this.estimateItemSize(key);
         }
       }
     }
