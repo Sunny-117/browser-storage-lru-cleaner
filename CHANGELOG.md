@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.0.12
+
+[compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.11...v0.0.12)
+
+### 🩹 Fixes
+
+- 🐛 remove push tag ([f238b47](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/f238b47))
+
+### ❤️ Contributors
+
+- Sunny-117 <zhiqiangfu6@gmail.com>
+
 ## v0.0.10
 
 [compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.9...v0.0.10)

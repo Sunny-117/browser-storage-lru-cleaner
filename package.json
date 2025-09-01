@@ -1,6 +1,6 @@
 {
   "name": "browser-storage-lru-cleaner",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "description": "A TypeScript SDK for automatic browser storage cleanup using LRU algorithm",
   "main": "dist/index.mjs",
   "types": "dist/index.d.mts",
