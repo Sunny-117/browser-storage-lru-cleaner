@@ -10,7 +10,7 @@
     "dev": "turbo run sdk:dev playground:dev --parallel",
     "build": "tsdown",
     "prepublish": "pnpm build",
-    "release": "bumpp && pnpm publish && git push --follow-tags",
+    "release": "changelogen --release && bumpp && pnpm publish && git push --follow-tags",
     "commit": "git-cz",
     "prepare": "husky install",
     "playground:dev": "cd playground && pnpm dev",
@@ -33,6 +33,7 @@
   "devDependencies": {
     "@types/node": "^18.15.0",
     "bumpp": "^10.2.3",
+    "changelogen": "^0.6.2",
     "git-cz": "^4.9.0",
     "http-server": "^14.1.1",
     "husky": "^8.0.0",
