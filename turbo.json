@@ -10,7 +10,10 @@
         },
         "playground:dev": {
             "cache": false,
-            "persistent": true
+            "persistent": true,
+            "dependsOn": [
+                "^sdk:dev"
+            ]
         }
     }
 }
