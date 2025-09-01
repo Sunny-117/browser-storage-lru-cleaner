@@ -1,0 +1,16 @@
+{
+    "$schema": "https://turbo.build/schema.json",
+    "extends": [
+        "//"
+    ],
+    "tasks": {
+        "sdk:dev": {
+            "cache": false,
+            "persistent": true
+        },
+        "playground:dev": {
+            "cache": false,
+            "persistent": true
+        }
+    }
+}

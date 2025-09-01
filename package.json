@@ -4,10 +4,11 @@
   "description": "A TypeScript SDK for automatic browser storage cleanup using LRU algorithm",
   "main": "dist/index.mjs",
   "types": "dist/index.d.mts",
+  "packageManager": "pnpm@10.9.0",
   "scripts": {
+    "sdk:dev": "tsdown --watch",
+    "dev": "turbo run sdk:dev playground:dev --parallel",
     "build": "tsdown",
-    "dev": "tsdown --watch",
-    "demo": "http-server demo -p 8080",
     "prepublish": "pnpm build",
     "release": "bumpp && pnpm publish",
     "commit": "git-cz",
@@ -35,7 +36,9 @@
     "git-cz": "^4.9.0",
     "http-server": "^14.1.1",
     "husky": "^8.0.0",
+    "npm-run-all": "^4.1.5",
     "tsdown": "^0.14.2",
+    "turbo": "^2.5.6",
     "typescript": "^5.0.0"
   },
   "files": [
