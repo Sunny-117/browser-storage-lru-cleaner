@@ -41,10 +41,29 @@ export class LRUStrategy implements ICleanupStrategy {
     this.accessRecordsKey = Utils.generateStorageKey('lru', 'access_records');
     this.debugRecordsKey = Utils.generateStorageKey('lru', 'debug_records');
 
-    this.loadAccessRecords();
+    // 异步初始化
+    this.initialize();
+  }
 
-    // 初始化存量数据的访问记录
-    this.initializeExistingData();
+  /**
+   * 异步初始化方法
+   */
+  private async initialize(): Promise<void> {
+    try {
+      // 先加载访问记录
+      await this.loadAccessRecords();
+
+      // 然后初始化存量数据
+      this.initializeExistingData();
+
+      if (this.config.debug) {
+        console.log('[LRU] Strategy initialized successfully');
+      }
+    } catch (error) {
+      console.error('[LRU] Failed to initialize strategy:', error);
+      // 即使初始化失败，也要确保有一个空的访问记录对象
+      this.accessRecords = {};
+    }
   }
 
   /**
