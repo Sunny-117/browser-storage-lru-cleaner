@@ -226,33 +226,6 @@ export default function App() {
     }
   };
 
-  // 重建访问记录
-  const rebuildAccessRecords = () => {
-    try {
-      const result = cleaner.rebuildAccessRecords();
-      if (result) {
-        addLog(`🔧 访问记录重建完成:`);
-        addLog(`  重建前: ${result.before.trackedKeys}/${result.before.totalKeys}`);
-        addLog(`  重建后: ${result.after.trackedKeys}/${result.after.totalKeys}`);
-        addLog(`  新增记录: ${result.rebuiltCount}个`);
-        updateStats();
-      }
-    } catch (error) {
-      addLog(`❌ 重建失败: ${error}`);
-    }
-  };
-
-  // 初始化存量数据
-  const initializeExistingData = () => {
-    try {
-      const count = cleaner.initializeExistingData();
-      addLog(`📋 初始化存量数据: 为 ${count} 个项目创建了访问记录`);
-      updateStats();
-    } catch (error) {
-      addLog(`❌ 初始化失败: ${error}`);
-    }
-  };
-
   // 自动修复访问记录
   const autoRepairAccessRecords = () => {
     try {
