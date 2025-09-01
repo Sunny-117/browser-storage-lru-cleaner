@@ -18,7 +18,10 @@ const DEFAULT_CONFIG: IStorageCleanerConfig = {
   maxAccessAge: 7 * 24 * 60 * 60 * 1000, // 7天
   autoCleanup: true,
   debug: false,
-  excludeKeys: []
+  excludeKeys: [],
+  enableTimeBasedCleanup: true, // 启用基于时间的清理
+  timeCleanupThreshold: 7, // 7天未访问自动清理
+  cleanupOnInsert: true // 插入时触发清理
 };
 
 /**
@@ -43,7 +46,10 @@ export class StorageCleaner {
     this.strategy = this.config.strategy || new LRUStrategy(this.adapter, {
       maxAccessAge: this.config.maxAccessAge,
       excludeKeys: this.config.excludeKeys,
-      debug: this.config.debug
+      debug: this.config.debug,
+      enableTimeBasedCleanup: this.config.enableTimeBasedCleanup,
+      timeCleanupThreshold: this.config.timeCleanupThreshold,
+      cleanupOnInsert: this.config.cleanupOnInsert
     });
 
     this.stats = {
@@ -356,6 +362,92 @@ export class StorageCleaner {
         issues: ['Failed to check storage health'],
         recommendations: ['Check console for detailed error information']
       };
+    }
+  }
+
+  /**
+   * 手动触发基于时间的清理
+   */
+  triggerTimeBasedCleanup(): {
+    cleanedKeys: string[];
+    cleanedCount: number;
+  } | null {
+    if (this.strategy instanceof LRUStrategy) {
+      const result = (this.strategy as any).triggerTimeBasedCleanup();
+      this.updateStats();
+      return result;
+    }
+    return null;
+  }
+
+  /**
+   * 获取即将过期的键列表
+   */
+  getExpiringKeys(warningDays: number = 1): Array<{
+    key: string;
+    lastAccess: string;
+    daysUntilExpiry: number;
+    accessCount: number;
+  }> {
+    if (this.strategy instanceof LRUStrategy) {
+      return (this.strategy as any).getExpiringKeys(warningDays);
+    }
+    return [];
+  }
+
+  /**
+   * 获取时间清理统计信息
+   */
+  getTimeCleanupStats(): {
+    enabled: boolean;
+    thresholdDays: number;
+    expiredKeysCount: number;
+    expiringKeysCount: number;
+    totalTrackedKeys: number;
+  } {
+    if (this.strategy instanceof LRUStrategy) {
+      return (this.strategy as any).getTimeCleanupStats();
+    }
+    return {
+      enabled: false,
+      thresholdDays: 0,
+      expiredKeysCount: 0,
+      expiringKeysCount: 0,
+      totalTrackedKeys: 0
+    };
+  }
+
+  /**
+   * 配置时间清理参数
+   */
+  configureTimeBasedCleanup(options: {
+    enabled?: boolean;
+    thresholdDays?: number;
+    cleanupOnInsert?: boolean;
+  }): void {
+    if (options.enabled !== undefined) {
+      this.config.enableTimeBasedCleanup = options.enabled;
+    }
+    if (options.thresholdDays !== undefined) {
+      this.config.timeCleanupThreshold = options.thresholdDays;
+    }
+    if (options.cleanupOnInsert !== undefined) {
+      this.config.cleanupOnInsert = options.cleanupOnInsert;
+    }
+
+    // 如果策略是LRU策略，更新其配置
+    if (this.strategy instanceof LRUStrategy) {
+      (this.strategy as any).config.enableTimeBasedCleanup = this.config.enableTimeBasedCleanup;
+      (this.strategy as any).config.timeCleanupThreshold = this.config.timeCleanupThreshold;
+      (this.strategy as any).config.cleanupOnInsert = this.config.cleanupOnInsert;
+    }
+
+    if (this.config.debug) {
+      console.log('[StorageCleaner] Time-based cleanup configured:', {
+        enabled: this.config.enableTimeBasedCleanup,
+        thresholdDays: this.config.timeCleanupThreshold,
+        cleanupOnInsert: this.config.cleanupOnInsert
+      });
     }
   }
 

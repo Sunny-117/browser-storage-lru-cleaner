@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { createLocalStorageCleaner } from 'browser-storage-lru-cleaner';
 
@@ -8,7 +9,11 @@ const cleaner = createLocalStorageCleaner({
   cleanupThreshold: 0.7, // 70%时开始清理
   cleanupRatio: 0.5, // 清理50%的数据
   autoCleanup: true,
-  debug: true
+  debug: true,
+  enableTimeBasedCleanup: true, // 启用基于时间的清理
+  // timeCleanupThreshold: 0.1, // 0.1天(约2.4小时)未访问自动清理 - 便于测试
+  timeCleanupThreshold: 10 / (24 * 60 * 60),
+  cleanupOnInsert: true // 插入时触发清理
 });
 
 export default function App() {
@@ -17,6 +22,8 @@ export default function App() {
   const [stats, setStats] = useState(cleaner.getStats());
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [showDebug, setShowDebug] = useState(false);
+  const [timeCleanupStats, setTimeCleanupStats] = useState<any>(null);
+  const [expiringKeys, setExpiringKeys] = useState<any[]>([]);
 
   const addLog = (message: string) => {
     const time = new Date().toLocaleTimeString();
@@ -126,9 +133,84 @@ export default function App() {
     }
   };
 
+  // 触发基于时间的清理
+  const triggerTimeCleanup = () => {
+    try {
+      const result = cleaner.triggerTimeBasedCleanup();
+      if (result) {
+        addLog(`⏰ 时间清理完成: 清理了 ${result.cleanedCount} 个过期项目`);
+        if (result.cleanedKeys.length > 0) {
+          addLog(`清理的项目: ${result.cleanedKeys.join(', ')}`);
+        }
+        updateStats();
+      } else {
+        addLog('❌ 时间清理功能不可用');
+      }
+    } catch (error) {
+      addLog(`❌ 时间清理失败: ${error}`);
+    }
+  };
+
+  // 查看即将过期的项目
+  const showExpiringKeys = () => {
+    try {
+      const expiring = cleaner.getExpiringKeys(1);
+      setExpiringKeys(expiring);
+      if (expiring.length > 0) {
+        addLog(`⚠️ 即将过期的项目 (${expiring.length}个):`);
+        expiring.slice(0, 3).forEach((item: any) => {
+          addLog(`  ${item.key} - ${item.daysUntilExpiry}天后过期`);
+        });
+      } else {
+        addLog('✅ 没有即将过期的项目');
+      }
+    } catch (error) {
+      addLog(`❌ 获取过期项目失败: ${error}`);
+    }
+  };
+
+  // 获取时间清理统计
+  const updateTimeCleanupStats = () => {
+    try {
+      const stats = cleaner.getTimeCleanupStats();
+      setTimeCleanupStats(stats);
+      if (stats.enabled) {
+        addLog(`📊 时间清理统计: ${stats.expiredKeysCount}个过期, ${stats.expiringKeysCount}个即将过期`);
+      }
+    } catch (error) {
+      addLog(`❌ 获取时间清理统计失败: ${error}`);
+    }
+  };
+
+  // 创建一些旧数据用于测试时间清理
+  const createOldData = () => {
+    // 创建一些"旧"数据（通过修改访问记录来模拟）
+    const oldKeys = ['old_data_1', 'old_data_2', 'old_data_3'];
+    const oldTime = Date.now() - (3 * 60 * 60 * 1000); // 3小时前
+
+    oldKeys.forEach(key => {
+      localStorage.setItem(key, `旧数据: ${key}`);
+      // 手动设置访问记录为旧时间
+      const strategy = cleaner.getStrategy() as any;
+      if (strategy.accessRecords) {
+        strategy.accessRecords[key] = {
+          lastAccess: oldTime,
+          accessCount: 1,
+          size: new Blob([key + `旧数据: ${key}`]).size
+        };
+      }
+    });
+
+    addLog(`🕰️ 创建了 ${oldKeys.length} 个旧数据项目 (3小时前)`);
+    updateStats();
+  };
+
   // 定时更新统计
   useEffect(() => {
-    const interval = setInterval(updateStats, 1000);
+    const interval = setInterval(() => {
+      updateStats();
+      updateTimeCleanupStats();
+    }, 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -156,6 +238,12 @@ export default function App() {
         <div>清理次数: {stats.cleanupCount}</div>
         {(stats as any).compressionRatio && (
           <div>压缩率: {(stats as any).compressionRatio}</div>
+        )}
+        {timeCleanupStats && timeCleanupStats.enabled && (
+          <>
+            <div>时间清理: {timeCleanupStats.thresholdDays}天阈值</div>
+            <div>过期项目: {timeCleanupStats.expiredKeysCount}个</div>
+          </>
         )}
 
         {/* 进度条 */}
@@ -202,6 +290,9 @@ export default function App() {
             <button onClick={manualCleanup} style={{ ...buttonStyle, background: '#ffc107', color: '#000' }}>手动清理</button>
             <button onClick={optimizeStorage} style={{ ...buttonStyle, background: '#17a2b8' }}>优化存储</button>
             <button onClick={showCleanupCandidates} style={{ ...buttonStyle, background: '#6f42c1' }}>清理预览</button>
+            <button onClick={triggerTimeCleanup} style={{ ...buttonStyle, background: '#e83e8c' }}>时间清理</button>
+            <button onClick={showExpiringKeys} style={{ ...buttonStyle, background: '#20c997' }}>过期预警</button>
+            <button onClick={createOldData} style={{ ...buttonStyle, background: '#6c757d' }}>创建旧数据</button>
             <button onClick={loadDebugInfo} style={{ ...buttonStyle, background: '#fd7e14' }}>调试信息</button>
             <button onClick={clearAll} style={{ ...buttonStyle, background: '#dc3545' }}>清空所有</button>
           </div>
@@ -230,6 +321,38 @@ export default function App() {
           ))
         )}
       </div>
+
+      {/* 即将过期的项目 */}
+      {expiringKeys.length > 0 && (
+        <div style={{
+          marginTop: '20px',
+          padding: '15px',
+          background: '#fff3cd',
+          borderRadius: '5px',
+          border: '1px solid #ffeaa7'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <h3>⚠️ 即将过期的项目 ({expiringKeys.length})</h3>
+            <button onClick={() => setExpiringKeys([])} style={{ ...buttonStyle, background: '#6c757d', padding: '4px 8px' }}>
+              关闭
+            </button>
+          </div>
+          <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+            {expiringKeys.map((item, index) => (
+              <div key={index} style={{
+                padding: '8px',
+                background: '#ffffff',
+                marginBottom: '5px',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}>
+                <strong>{item.key}</strong> - {item.daysUntilExpiry}天后过期
+                (访问{item.accessCount}次, 最后访问: {new Date(item.lastAccess).toLocaleString()})
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 调试信息 */}
       {showDebug && debugInfo && (

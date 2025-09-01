@@ -11,6 +11,9 @@ export class LRUStrategy implements ICleanupStrategy {
     maxAccessAge: number;
     excludeKeys: string[];
     debug: boolean;
+    enableTimeBasedCleanup: boolean;
+    timeCleanupThreshold: number;
+    cleanupOnInsert: boolean;
   };
   private accessRecordsKey: string;
   private debugRecordsKey: string;
@@ -21,13 +24,19 @@ export class LRUStrategy implements ICleanupStrategy {
       maxAccessAge: number;
       excludeKeys?: string[];
       debug?: boolean;
+      enableTimeBasedCleanup?: boolean;
+      timeCleanupThreshold?: number;
+      cleanupOnInsert?: boolean;
     }
   ) {
     this.storageAdapter = storageAdapter;
     this.config = {
       maxAccessAge: config.maxAccessAge,
       excludeKeys: config.excludeKeys || [],
-      debug: config.debug || false
+      debug: config.debug || false,
+      enableTimeBasedCleanup: config.enableTimeBasedCleanup || false,
+      timeCleanupThreshold: config.timeCleanupThreshold || 7, // 默认7天
+      cleanupOnInsert: config.cleanupOnInsert !== false // 默认启用
     };
     this.accessRecordsKey = Utils.generateStorageKey('lru', 'access_records');
     this.debugRecordsKey = Utils.generateStorageKey('lru', 'debug_records');
@@ -56,6 +65,11 @@ export class LRUStrategy implements ICleanupStrategy {
         accessCount: 1,
         size: 0 // 将在需要时计算
       };
+    }
+
+    // 如果启用了基于时间的清理且是插入操作，触发时间清理
+    if (this.config.enableTimeBasedCleanup && this.config.cleanupOnInsert && !existing) {
+      this.performTimeBasedCleanup();
     }
 
     // 异步保存访问记录，避免阻塞主线程
@@ -434,5 +448,193 @@ export class LRUStrategy implements ICleanupStrategy {
     const accessWeight = Math.max(0, 10 - record.accessCount); // 访问次数越少权重越高
 
     return timeWeight + accessWeight;
+  }
+
+  /**
+   * 执行基于时间的清理
+   * 清理超过指定天数未访问的key
+   */
+  private performTimeBasedCleanup(): void {
+    if (!this.config.enableTimeBasedCleanup) {
+      return;
+    }
+
+    const now = Date.now();
+    const thresholdMs = this.config.timeCleanupThreshold * 24 * 60 * 60 * 1000; // 转换为毫秒
+    const expiredKeys: string[] = [];
+
+    // 获取所有存储的键
+    const allKeys = this.getAllStorageKeys();
+
+    for (const key of allKeys) {
+      // 跳过系统键和排除的键
+      if (Utils.isSystemKey(key) || this.config.excludeKeys.includes(key)) {
+        continue;
+      }
+
+      const record = this.accessRecords[key];
+
+      if (record) {
+        // 有访问记录，检查是否过期
+        if (now - record.lastAccess > thresholdMs) {
+          expiredKeys.push(key);
+        }
+      } else {
+        // 没有访问记录的键，认为是很久以前的数据，直接清理
+        expiredKeys.push(key);
+      }
+    }
+
+    // 执行清理
+    if (expiredKeys.length > 0) {
+      this.cleanupExpiredKeys(expiredKeys);
+
+      if (this.config.debug) {
+        console.log(`[LRU] Time-based cleanup: removed ${expiredKeys.length} keys older than ${this.config.timeCleanupThreshold} days`);
+        console.log(`[LRU] Cleaned keys:`, expiredKeys.slice(0, 5).join(', ') + (expiredKeys.length > 5 ? '...' : ''));
+      }
+    }
+  }
+
+  /**
+   * 获取所有存储键（需要适配器支持）
+   */
+  private getAllStorageKeys(): string[] {
+    try {
+      const keys = this.storageAdapter.getAllKeys();
+      return Array.isArray(keys) ? keys : [];
+    } catch (error) {
+      console.warn('[LRU] Failed to get all storage keys:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 清理过期的键
+   */
+  private cleanupExpiredKeys(keys: string[]): void {
+    for (const key of keys) {
+      try {
+        // 从实际存储中删除
+        this.storageAdapter.removeItem(key);
+
+        // 从访问记录中删除
+        delete this.accessRecords[key];
+      } catch (error) {
+        console.warn(`[LRU] Failed to cleanup key "${key}":`, error);
+      }
+    }
+  }
+
+  /**
+   * 手动触发基于时间的清理
+   */
+  triggerTimeBasedCleanup(): {
+    cleanedKeys: string[];
+    cleanedCount: number;
+  } {
+    const beforeKeys = this.getAllStorageKeys().length;
+    this.performTimeBasedCleanup();
+    const afterKeys = this.getAllStorageKeys().length;
+
+    const cleanedCount = beforeKeys - afterKeys;
+    const cleanedKeys = Object.keys(this.accessRecords).filter(key => {
+      const record = this.accessRecords[key];
+      const now = Date.now();
+      const thresholdMs = this.config.timeCleanupThreshold * 24 * 60 * 60 * 1000;
+      return now - record.lastAccess > thresholdMs;
+    });
+
+    return {
+      cleanedKeys: cleanedKeys.slice(0, 10), // 只返回前10个作为示例
+      cleanedCount
+    };
+  }
+
+  /**
+   * 获取即将过期的键列表（用于预警）
+   */
+  getExpiringKeys(warningDays: number = 1): Array<{
+    key: string;
+    lastAccess: string;
+    daysUntilExpiry: number;
+    accessCount: number;
+  }> {
+    const now = Date.now();
+    const thresholdMs = this.config.timeCleanupThreshold * 24 * 60 * 60 * 1000;
+    const warningMs = warningDays * 24 * 60 * 60 * 1000;
+    const expiringKeys: Array<{
+      key: string;
+      lastAccess: string;
+      daysUntilExpiry: number;
+      accessCount: number;
+    }> = [];
+
+    for (const [key, record] of Object.entries(this.accessRecords)) {
+      if (Utils.isSystemKey(key) || this.config.excludeKeys.includes(key)) {
+        continue;
+      }
+
+      const timeSinceAccess = now - record.lastAccess;
+      const timeUntilExpiry = thresholdMs - timeSinceAccess;
+
+      // 如果在警告期内
+      if (timeUntilExpiry > 0 && timeUntilExpiry <= warningMs) {
+        expiringKeys.push({
+          key,
+          lastAccess: new Date(record.lastAccess).toISOString(),
+          daysUntilExpiry: Math.ceil(timeUntilExpiry / (24 * 60 * 60 * 1000)),
+          accessCount: record.accessCount
+        });
+      }
+    }
+
+    return expiringKeys.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
+  }
+
+  /**
+   * 获取时间清理统计信息
+   */
+  getTimeCleanupStats(): {
+    enabled: boolean;
+    thresholdDays: number;
+    expiredKeysCount: number;
+    expiringKeysCount: number;
+    totalTrackedKeys: number;
+  } {
+    if (!this.config.enableTimeBasedCleanup) {
+      return {
+        enabled: false,
+        thresholdDays: 0,
+        expiredKeysCount: 0,
+        expiringKeysCount: 0,
+        totalTrackedKeys: 0
+      };
+    }
+
+    const now = Date.now();
+    const thresholdMs = this.config.timeCleanupThreshold * 24 * 60 * 60 * 1000;
+    const warningMs = 24 * 60 * 60 * 1000; // 1天警告期
+
+    let expiredKeysCount = 0;
+    let expiringKeysCount = 0;
+
+    for (const record of Object.values(this.accessRecords)) {
+      const timeSinceAccess = now - record.lastAccess;
+
+      if (timeSinceAccess > thresholdMs) {
+        expiredKeysCount++;
+      } else if (thresholdMs - timeSinceAccess <= warningMs) {
+        expiringKeysCount++;
+      }
+    }
+
+    return {
+      enabled: true,
+      thresholdDays: this.config.timeCleanupThreshold,
+      expiredKeysCount,
+      expiringKeysCount,
+      totalTrackedKeys: Object.keys(this.accessRecords).length
+    };
   }
 }

@@ -98,6 +98,21 @@ export interface IStorageCleanerConfig {
   autoCleanup: boolean;
 
   /**
+   * 是否启用基于时间的自动清理
+   */
+  enableTimeBasedCleanup?: boolean;
+
+  /**
+   * 时间清理阈值（天数）- 超过N天未访问的key会被自动清理
+   */
+  timeCleanupThreshold?: number;
+
+  /**
+   * 是否在插入新数据时触发时间清理
+   */
+  cleanupOnInsert?: boolean;
+
+  /**
    * 清理策略
    */
   strategy?: ICleanupStrategy;
