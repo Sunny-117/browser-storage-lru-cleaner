@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
-import { createLocalStorageCleaner } from 'browser-storage-lru-cleaner';
+import { createLocalStorageCleaner, Utils } from 'browser-storage-lru-cleaner';
 
 
 // 创建清理器实例 - 使用很小的容量便于快速看到清理效果
@@ -27,7 +27,7 @@ export default function BasicExample() {
     const [accessRecordsHealth, setAccessRecordsHealth] = useState<any>(null);
 
     const addLog = (message: string) => {
-        const time = new Date().toLocaleTimeString();
+        const time = Utils.formatDate(Utils.nowDate()).split(' ')[1]; // 只取时间部分
         setLogs(prev => [...prev, `[${time}] ${message}`]);
     };
 
@@ -187,7 +187,7 @@ export default function BasicExample() {
     const createOldData = () => {
         // 创建一些"旧"数据（通过修改访问记录来模拟）
         const oldKeys = ['old_data_1', 'old_data_2', 'old_data_3'];
-        const oldTime = Date.now() - (3 * 60 * 60 * 1000); // 3小时前
+        const oldTime = Utils.now() - (3 * 60 * 60 * 1000); // 3小时前
 
         oldKeys.forEach(key => {
             localStorage.setItem(key, `旧数据: ${key}`);
@@ -449,7 +449,7 @@ export default function BasicExample() {
                                 fontSize: '14px'
                             }}>
                                 <strong>{item.key}</strong> - {item.daysUntilExpiry}天后过期
-                                (访问{item.accessCount}次, 最后访问: {new Date(item.lastAccess).toLocaleString()})
+                                (访问{item.accessCount}次, 最后访问: {Utils.formatLocale(new Date(item.lastAccess))})
                             </div>
                         ))}
                     </div>

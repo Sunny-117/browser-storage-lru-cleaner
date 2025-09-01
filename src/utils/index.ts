@@ -82,14 +82,14 @@ export class Utils {
           originalSize: JSON.stringify(records).length,
           compressedSize: compressedStr.length,
           compressionRatio: (compressedStr.length / JSON.stringify(records).length * 100).toFixed(2) + '%',
-          timeBase: new Date(timeBase).toISOString(),
+          timeBase: Utils.formatDate(timeBase),
           keyMappings: Object.keys(keyMap).length,
           records: Object.fromEntries(
             sortedEntries.slice(0, 10).map(([key, record]) => [
               key,
               {
                 ...record,
-                lastAccessTime: new Date(record.lastAccess).toISOString(),
+                lastAccessTime: Utils.formatDate(record.lastAccess),
                 weight: record.lastAccess + (record.accessCount * 60000),
                 willBeDeleted: this.calculateDeletionPriority(record, records)
               }
@@ -214,10 +214,125 @@ export class Utils {
   }
 
   /**
-   * 获取当前时间戳
+   * 获取当前时间戳（毫秒）
    */
   static now(): number {
     return Date.now();
+  }
+
+  /**
+   * 获取当前完整日期和时间
+   */
+  static nowDate(): Date {
+    return new Date();
+  }
+
+  /**
+   * 数字补零（用于格式化）
+   */
+  private static pad(n: number, length: number = 2): string {
+    return n.toString().padStart(length, '0');
+  }
+
+  /**
+   * 格式化日期为 YYYY-MM-DD HH:mm:ss 格式
+   */
+  static formatDate(date: Date | number): string {
+    const d = typeof date === 'number' ? new Date(date) : date;
+
+    if (isNaN(d.getTime())) {
+      return 'Invalid Date';
+    }
+
+    const year = d.getFullYear();
+    const month = Utils.pad(d.getMonth() + 1); // 月份从0开始，所以要+1
+    const day = Utils.pad(d.getDate());
+    const hours = Utils.pad(d.getHours());
+    const minutes = Utils.pad(d.getMinutes());
+    const seconds = Utils.pad(d.getSeconds());
+
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+
+  /**
+   * 格式化时间戳为可读字符串
+   */
+  static formatTimestamp(timestamp: number): string {
+    return Utils.formatDate(new Date(timestamp));
+  }
+
+  /**
+   * 获取当前格式化的时间字符串
+   */
+  static nowFormatted(): string {
+    return Utils.formatDate(Utils.nowDate());
+  }
+
+  /**
+   * 格式化为本地时间字符串（使用浏览器本地化）
+   */
+  static formatLocale(date: Date | number): string {
+    const d = typeof date === 'number' ? new Date(date) : date;
+
+    if (isNaN(d.getTime())) {
+      return 'Invalid Date';
+    }
+
+    return d.toLocaleString();
+  }
+
+  /**
+   * 获取日期的各个部分
+   */
+  static getDateParts(date: Date | number): {
+    year: number;
+    month: number;
+    day: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+    milliseconds: number;
+  } {
+    const d = typeof date === 'number' ? new Date(date) : date;
+
+    return {
+      year: d.getFullYear(),
+      month: d.getMonth() + 1, // 月份从0开始，所以要+1
+      day: d.getDate(),
+      hours: d.getHours(),
+      minutes: d.getMinutes(),
+      seconds: d.getSeconds(),
+      milliseconds: d.getMilliseconds()
+    };
+  }
+
+  /**
+   * 计算时间差（返回毫秒）
+   */
+  static timeDiff(start: Date | number, end: Date | number = Date.now()): number {
+    const startTime = typeof start === 'number' ? start : start.getTime();
+    const endTime = typeof end === 'number' ? end : end.getTime();
+    return endTime - startTime;
+  }
+
+  /**
+   * 格式化时间差为可读字符串
+   */
+  static formatTimeDiff(milliseconds: number): string {
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) {
+      return `${days}天${hours % 24}小时`;
+    } else if (hours > 0) {
+      return `${hours}小时${minutes % 60}分钟`;
+    } else if (minutes > 0) {
+      return `${minutes}分钟${seconds % 60}秒`;
+    } else {
+      return `${seconds}秒`;
+    }
   }
 
   /**

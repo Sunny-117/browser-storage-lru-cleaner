@@ -584,7 +584,7 @@ export class LRUStrategy implements ICleanupStrategy {
     const candidates = Object.entries(this.accessRecords)
       .map(([key, record]) => ({
         key,
-        lastAccess: new Date(record.lastAccess).toISOString(),
+        lastAccess: Utils.formatDate(record.lastAccess),
         accessCount: record.accessCount,
         size: record.size,
         priority: this.calculateCleanupPriority(record)
@@ -742,7 +742,7 @@ export class LRUStrategy implements ICleanupStrategy {
       if (timeUntilExpiry > 0 && timeUntilExpiry <= warningMs) {
         expiringKeys.push({
           key,
-          lastAccess: new Date(record.lastAccess).toISOString(),
+          lastAccess: Utils.formatDate(record.lastAccess),
           daysUntilExpiry: Math.ceil(timeUntilExpiry / (24 * 60 * 60 * 1000)),
           accessCount: record.accessCount
         });
