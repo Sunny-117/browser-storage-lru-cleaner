@@ -10,9 +10,9 @@ const cleaner = createLocalStorageCleaner({
   cleanupRatio: 0.5, // 清理50%的数据
   autoCleanup: true,
   debug: true,
-  enableTimeBasedCleanup: true, // 启用基于时间的清理
-  // timeCleanupThreshold: 0.1, // 0.1天(约2.4小时)未访问自动清理 - 便于测试
-  timeCleanupThreshold: 10 / (24 * 60 * 60),
+  enableTimeBasedCleanup: false, // 启用基于时间的清理
+  timeCleanupThreshold: 0.1, // 0.1天(约2.4小时)未访问自动清理 - 便于测试
+  // timeCleanupThreshold: 10 / (24 * 60 * 60),
   cleanupOnInsert: true // 插入时触发清理
 });
 
@@ -24,6 +24,7 @@ export default function App() {
   const [showDebug, setShowDebug] = useState(false);
   const [timeCleanupStats, setTimeCleanupStats] = useState<any>(null);
   const [expiringKeys, setExpiringKeys] = useState<any[]>([]);
+  const [accessRecordsHealth, setAccessRecordsHealth] = useState<any>(null);
 
   const addLog = (message: string) => {
     const time = new Date().toLocaleTimeString();
@@ -205,6 +206,87 @@ export default function App() {
     updateStats();
   };
 
+  // 检查访问记录健康状态
+  const checkAccessRecordsHealth = () => {
+    try {
+      const health = cleaner.checkAccessRecordsHealth();
+      if (health) {
+        setAccessRecordsHealth(health);
+        addLog(`🏥 访问记录健康检查: ${health.isHealthy ? '健康' : '需要修复'}`);
+        addLog(`  总键数: ${health.totalKeys}, 已跟踪: ${health.trackedKeys}`);
+        if (health.missingRecords > 0) {
+          addLog(`  缺失记录: ${health.missingRecords}个`);
+        }
+        if (health.corruptedRecords > 0) {
+          addLog(`  损坏记录: ${health.corruptedRecords}个`);
+        }
+      }
+    } catch (error) {
+      addLog(`❌ 健康检查失败: ${error}`);
+    }
+  };
+
+  // 重建访问记录
+  const rebuildAccessRecords = () => {
+    try {
+      const result = cleaner.rebuildAccessRecords();
+      if (result) {
+        addLog(`🔧 访问记录重建完成:`);
+        addLog(`  重建前: ${result.before.trackedKeys}/${result.before.totalKeys}`);
+        addLog(`  重建后: ${result.after.trackedKeys}/${result.after.totalKeys}`);
+        addLog(`  新增记录: ${result.rebuiltCount}个`);
+        updateStats();
+      }
+    } catch (error) {
+      addLog(`❌ 重建失败: ${error}`);
+    }
+  };
+
+  // 初始化存量数据
+  const initializeExistingData = () => {
+    try {
+      const count = cleaner.initializeExistingData();
+      addLog(`📋 初始化存量数据: 为 ${count} 个项目创建了访问记录`);
+      updateStats();
+    } catch (error) {
+      addLog(`❌ 初始化失败: ${error}`);
+    }
+  };
+
+  // 自动修复访问记录
+  const autoRepairAccessRecords = () => {
+    try {
+      const result = cleaner.autoRepairAccessRecords();
+      addLog(`🔧 自动修复完成: ${result.repairAction}`);
+
+      if (result.healthCheck) {
+        addLog(`  健康状态: ${result.healthCheck.isHealthy ? '健康' : '需要修复'}`);
+      }
+
+      if (result.repairAction === 'initialize' && result.result) {
+        addLog(`  初始化了 ${result.result.initializedCount} 个记录`);
+      } else if (result.repairAction === 'rebuild' && result.result) {
+        addLog(`  重建了 ${result.result.rebuiltCount} 个记录`);
+      }
+
+      updateStats();
+    } catch (error) {
+      addLog(`❌ 自动修复失败: ${error}`);
+    }
+  };
+
+  // 模拟访问记录丢失
+  const simulateDataLoss = () => {
+    try {
+      // 直接删除访问记录来模拟数据丢失
+      localStorage.removeItem('__lru_access_records__');
+      addLog('💥 模拟访问记录丢失 - 已删除 __lru_access_records__');
+      addLog('💡 现在可以测试自动修复功能');
+    } catch (error) {
+      addLog(`❌ 模拟失败: ${error}`);
+    }
+  };
+
   // 定时更新统计
   useEffect(() => {
     const interval = setInterval(() => {
@@ -244,6 +326,11 @@ export default function App() {
             <div>时间清理: {timeCleanupStats.thresholdDays}天阈值</div>
             <div>过期项目: {timeCleanupStats.expiredKeysCount}个</div>
           </>
+        )}
+        {accessRecordsHealth && (
+          <div style={{ color: accessRecordsHealth.isHealthy ? '#28a745' : '#dc3545' }}>
+            记录健康: {accessRecordsHealth.isHealthy ? '正常' : '异常'}
+          </div>
         )}
 
         {/* 进度条 */}
@@ -293,6 +380,9 @@ export default function App() {
             <button onClick={triggerTimeCleanup} style={{ ...buttonStyle, background: '#e83e8c' }}>时间清理</button>
             <button onClick={showExpiringKeys} style={{ ...buttonStyle, background: '#20c997' }}>过期预警</button>
             <button onClick={createOldData} style={{ ...buttonStyle, background: '#6c757d' }}>创建旧数据</button>
+            <button onClick={checkAccessRecordsHealth} style={{ ...buttonStyle, background: '#17a2b8' }}>健康检查</button>
+            <button onClick={autoRepairAccessRecords} style={{ ...buttonStyle, background: '#28a745' }}>自动修复</button>
+            <button onClick={simulateDataLoss} style={{ ...buttonStyle, background: '#dc3545' }}>模拟丢失</button>
             <button onClick={loadDebugInfo} style={{ ...buttonStyle, background: '#fd7e14' }}>调试信息</button>
             <button onClick={clearAll} style={{ ...buttonStyle, background: '#dc3545' }}>清空所有</button>
           </div>
@@ -321,6 +411,45 @@ export default function App() {
           ))
         )}
       </div>
+
+      {/* 访问记录健康状态 */}
+      {accessRecordsHealth && (
+        <div style={{
+          marginTop: '20px',
+          padding: '15px',
+          background: accessRecordsHealth.isHealthy ? '#d4edda' : '#f8d7da',
+          borderRadius: '5px',
+          border: `1px solid ${accessRecordsHealth.isHealthy ? '#c3e6cb' : '#f5c6cb'}`
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <h3>🏥 访问记录健康状态</h3>
+            <button onClick={() => setAccessRecordsHealth(null)} style={{ ...buttonStyle, background: '#6c757d', padding: '4px 8px' }}>
+              关闭
+            </button>
+          </div>
+          <div style={{ fontSize: '14px' }}>
+            <div><strong>状态:</strong> {accessRecordsHealth.isHealthy ? '✅ 健康' : '❌ 需要修复'}</div>
+            <div><strong>总键数:</strong> {accessRecordsHealth.totalKeys}</div>
+            <div><strong>已跟踪:</strong> {accessRecordsHealth.trackedKeys}</div>
+            {accessRecordsHealth.missingRecords > 0 && (
+              <div style={{ color: '#dc3545' }}><strong>缺失记录:</strong> {accessRecordsHealth.missingRecords}个</div>
+            )}
+            {accessRecordsHealth.corruptedRecords > 0 && (
+              <div style={{ color: '#dc3545' }}><strong>损坏记录:</strong> {accessRecordsHealth.corruptedRecords}个</div>
+            )}
+            {accessRecordsHealth.recommendations.length > 0 && (
+              <div style={{ marginTop: '10px' }}>
+                <strong>建议:</strong>
+                <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
+                  {accessRecordsHealth.recommendations.map((rec: string, index: number) => (
+                    <li key={index}>{rec}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 即将过期的项目 */}
       {expiringKeys.length > 0 && (
@@ -392,6 +521,12 @@ export default function App() {
           <li>点击"随机访问"可以更新某些数据的LRU状态</li>
           <li>点击"清理预览"查看哪些数据最可能被清理</li>
           <li>点击"优化存储"手动优化存储空间</li>
+          <li>点击"时间清理"手动清理过期数据</li>
+          <li>点击"过期预警"查看即将过期的数据</li>
+          <li>点击"创建旧数据"创建一些旧数据用于测试时间清理</li>
+          <li>点击"健康检查"检查访问记录的完整性</li>
+          <li>点击"自动修复"自动修复访问记录问题</li>
+          <li>点击"模拟丢失"模拟访问记录丢失场景</li>
           <li>点击"调试信息"查看详细的压缩和存储信息</li>
         </ol>
         <p><strong>注意：</strong>打开浏览器控制台可以看到更详细的调试信息</p>
@@ -401,6 +536,12 @@ export default function App() {
           <ul>
             <li><strong>优化存储：</strong>使用高级压缩算法，减少元数据占用空间</li>
             <li><strong>清理预览：</strong>显示最可能被清理的数据项和优先级</li>
+            <li><strong>时间清理：</strong>自动清理超过N天未访问的数据（当前设置：0.1天=2.4小时）</li>
+            <li><strong>过期预警：</strong>显示即将过期的数据项，提前预警</li>
+            <li><strong>存量数据代理：</strong>SDK初始化时自动为已存在的数据创建访问记录</li>
+            <li><strong>访问记录兜底：</strong>自动检测和修复访问记录丢失或损坏问题</li>
+            <li><strong>健康检查：</strong>实时监控访问记录的完整性和健康状态</li>
+            <li><strong>自动修复：</strong>智能修复访问记录，支持初始化和重建</li>
             <li><strong>调试信息：</strong>显示压缩率、存储统计等详细信息</li>
             <li><strong>智能限制：</strong>自动限制访问记录数量，防止无限增长</li>
           </ul>

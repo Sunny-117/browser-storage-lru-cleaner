@@ -42,6 +42,9 @@ export class LRUStrategy implements ICleanupStrategy {
     this.debugRecordsKey = Utils.generateStorageKey('lru', 'debug_records');
 
     this.loadAccessRecords();
+
+    // 初始化存量数据的访问记录
+    this.initializeExistingData();
   }
 
   /**
@@ -271,12 +274,150 @@ export class LRUStrategy implements ICleanupStrategy {
       if (data) {
         this.accessRecords = Utils.decompressAccessRecords(data);
 
+        // 验证访问记录的完整性
+        if (this.validateAccessRecords()) {
+          if (this.config.debug) {
+            console.log(`[LRU] Loaded ${Object.keys(this.accessRecords).length} access records`);
+          }
+        } else {
+          // 访问记录损坏，触发重建
+          console.warn('[LRU] Access records corrupted, rebuilding...');
+          this.rebuildAccessRecords();
+        }
+      } else {
+        // 没有访问记录，可能是首次使用
         if (this.config.debug) {
-          console.log(`[LRU] Loaded ${Object.keys(this.accessRecords).length} access records`);
+          console.log('[LRU] No existing access records found');
+        }
+        this.accessRecords = {};
+      }
+    } catch (error) {
+      console.warn('[LRU] Failed to load access records, rebuilding:', error);
+      // 加载失败，触发重建
+      this.rebuildAccessRecords();
+    }
+  }
+
+  /**
+   * 验证访问记录的完整性
+   */
+  private validateAccessRecords(): boolean {
+    try {
+      // 检查访问记录是否为有效对象
+      if (!this.accessRecords || typeof this.accessRecords !== 'object') {
+        return false;
+      }
+
+      // 检查记录格式是否正确
+      for (const [key, record] of Object.entries(this.accessRecords)) {
+        if (!record ||
+            typeof record.lastAccess !== 'number' ||
+            typeof record.accessCount !== 'number' ||
+            typeof record.size !== 'number' ||
+            record.lastAccess <= 0 ||
+            record.accessCount <= 0) {
+          console.warn(`[LRU] Invalid access record for key: ${key}`);
+          return false;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.warn('[LRU] Error validating access records:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 初始化存量数据的访问记录
+   * 为已存在但没有访问记录的数据创建初始记录
+   */
+  private initializeExistingData(): void {
+    try {
+      const allKeys = this.getAllStorageKeys();
+      const now = Date.now();
+      let initializedCount = 0;
+
+      for (const key of allKeys) {
+        // 跳过系统键和排除的键
+        if (Utils.isSystemKey(key) || this.config.excludeKeys.includes(key)) {
+          continue;
+        }
+
+        // 如果没有访问记录，创建初始记录
+        if (!this.accessRecords[key]) {
+          const size = this.estimateItemSize(key);
+
+          // 为存量数据设置一个较早的初始访问时间
+          // 这样它们在LRU算法中会有较低的优先级
+          const initialAccessTime = now - (24 * 60 * 60 * 1000); // 1天前
+
+          this.accessRecords[key] = {
+            lastAccess: initialAccessTime,
+            accessCount: 1, // 初始访问次数为1
+            size: size
+          };
+
+          initializedCount++;
+        }
+      }
+
+      if (initializedCount > 0) {
+        // 异步保存新的访问记录
+        this.saveAccessRecordsDebounced();
+
+        if (this.config.debug) {
+          console.log(`[LRU] Initialized access records for ${initializedCount} existing keys`);
         }
       }
     } catch (error) {
-      console.warn('[LRU] Failed to load access records:', error);
+      console.warn('[LRU] Failed to initialize existing data:', error);
+    }
+  }
+
+  /**
+   * 访问记录丢失时的兜底处理
+   * 重建所有存储项的访问记录
+   */
+  private rebuildAccessRecords(): void {
+    try {
+      const allKeys = this.getAllStorageKeys();
+      const now = Date.now();
+      const rebuiltRecords: Record<string, IAccessRecord> = {};
+      let rebuiltCount = 0;
+
+      for (const key of allKeys) {
+        // 跳过系统键和排除的键
+        if (Utils.isSystemKey(key) || this.config.excludeKeys.includes(key)) {
+          continue;
+        }
+
+        const size = this.estimateItemSize(key);
+
+        // 为重建的记录设置默认值
+        // 使用随机的初始访问时间（过去7天内）来模拟真实使用情况
+        const randomDaysAgo = Math.random() * 7;
+        const initialAccessTime = now - (randomDaysAgo * 24 * 60 * 60 * 1000);
+
+        rebuiltRecords[key] = {
+          lastAccess: initialAccessTime,
+          accessCount: Math.floor(Math.random() * 5) + 1, // 1-5次随机访问
+          size: size
+        };
+
+        rebuiltCount++;
+      }
+
+      this.accessRecords = rebuiltRecords;
+
+      // 立即保存重建的记录
+      this.saveAccessRecords();
+
+      if (this.config.debug) {
+        console.log(`[LRU] Rebuilt access records for ${rebuiltCount} keys after data loss`);
+      }
+    } catch (error) {
+      console.error('[LRU] Failed to rebuild access records:', error);
       this.accessRecords = {};
     }
   }
@@ -635,6 +776,88 @@ export class LRUStrategy implements ICleanupStrategy {
       expiredKeysCount,
       expiringKeysCount,
       totalTrackedKeys: Object.keys(this.accessRecords).length
+    };
+  }
+
+  /**
+   * 检查访问记录的健康状态
+   */
+  checkAccessRecordsHealth(): {
+    isHealthy: boolean;
+    totalKeys: number;
+    trackedKeys: number;
+    missingRecords: number;
+    corruptedRecords: number;
+    recommendations: string[];
+  } {
+    const allKeys = this.getAllStorageKeys().filter(key =>
+      !Utils.isSystemKey(key) && !this.config.excludeKeys.includes(key)
+    );
+
+    const trackedKeys = Object.keys(this.accessRecords);
+    const missingRecords = allKeys.filter(key => !this.accessRecords[key]).length;
+
+    let corruptedRecords = 0;
+    for (const [key, record] of Object.entries(this.accessRecords)) {
+      if (!record ||
+          typeof record.lastAccess !== 'number' ||
+          typeof record.accessCount !== 'number' ||
+          typeof record.size !== 'number' ||
+          record.lastAccess <= 0 ||
+          record.accessCount <= 0) {
+        corruptedRecords++;
+      }
+    }
+
+    const recommendations: string[] = [];
+    const isHealthy = missingRecords === 0 && corruptedRecords === 0;
+
+    if (missingRecords > 0) {
+      recommendations.push(`${missingRecords} 个存储项缺少访问记录，建议重新初始化`);
+    }
+
+    if (corruptedRecords > 0) {
+      recommendations.push(`${corruptedRecords} 个访问记录已损坏，建议重建记录`);
+    }
+
+    if (missingRecords > allKeys.length * 0.5) {
+      recommendations.push('超过50%的记录缺失，建议执行完整重建');
+    }
+
+    return {
+      isHealthy,
+      totalKeys: allKeys.length,
+      trackedKeys: trackedKeys.length,
+      missingRecords,
+      corruptedRecords,
+      recommendations
+    };
+  }
+
+  /**
+   * 手动重建访问记录
+   */
+  manualRebuildAccessRecords(): {
+    before: { trackedKeys: number; totalKeys: number };
+    after: { trackedKeys: number; totalKeys: number };
+    rebuiltCount: number;
+  } {
+    const beforeStats = this.checkAccessRecordsHealth();
+
+    this.rebuildAccessRecords();
+
+    const afterStats = this.checkAccessRecordsHealth();
+
+    return {
+      before: {
+        trackedKeys: beforeStats.trackedKeys,
+        totalKeys: beforeStats.totalKeys
+      },
+      after: {
+        trackedKeys: afterStats.trackedKeys,
+        totalKeys: afterStats.totalKeys
+      },
+      rebuiltCount: afterStats.trackedKeys - beforeStats.trackedKeys
     };
   }
 }

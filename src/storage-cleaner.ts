@@ -452,6 +452,119 @@ export class StorageCleaner {
   }
 
   /**
+   * 检查访问记录的健康状态
+   */
+  checkAccessRecordsHealth(): {
+    isHealthy: boolean;
+    totalKeys: number;
+    trackedKeys: number;
+    missingRecords: number;
+    corruptedRecords: number;
+    recommendations: string[];
+  } | null {
+    if (this.strategy instanceof LRUStrategy) {
+      return (this.strategy as any).checkAccessRecordsHealth();
+    }
+    return null;
+  }
+
+  /**
+   * 手动重建访问记录
+   * 当访问记录丢失或损坏时使用
+   */
+  rebuildAccessRecords(): {
+    before: { trackedKeys: number; totalKeys: number };
+    after: { trackedKeys: number; totalKeys: number };
+    rebuiltCount: number;
+  } | null {
+    if (this.strategy instanceof LRUStrategy) {
+      const result = (this.strategy as any).manualRebuildAccessRecords();
+      this.updateStats();
+
+      if (this.config.debug) {
+        console.log('[StorageCleaner] Access records rebuilt:', result);
+      }
+
+      return result;
+    }
+    return null;
+  }
+
+  /**
+   * 初始化存量数据
+   * 为已存在但没有访问记录的数据创建记录
+   */
+  initializeExistingData(): number {
+    if (this.strategy instanceof LRUStrategy) {
+      const beforeCount = Object.keys((this.strategy as any).accessRecords).length;
+      (this.strategy as any).initializeExistingData();
+      const afterCount = Object.keys((this.strategy as any).accessRecords).length;
+
+      const initializedCount = afterCount - beforeCount;
+
+      if (this.config.debug && initializedCount > 0) {
+        console.log(`[StorageCleaner] Initialized ${initializedCount} existing data records`);
+      }
+
+      return initializedCount;
+    }
+    return 0;
+  }
+
+  /**
+   * 自动修复访问记录
+   * 检查健康状态并根据需要进行修复
+   */
+  autoRepairAccessRecords(): {
+    healthCheck: any;
+    repairAction: 'none' | 'initialize' | 'rebuild';
+    result?: any;
+  } {
+    const healthCheck = this.checkAccessRecordsHealth();
+
+    if (!healthCheck) {
+      return {
+        healthCheck: null,
+        repairAction: 'none'
+      };
+    }
+
+    // 如果健康状态良好，无需修复
+    if (healthCheck.isHealthy) {
+      return {
+        healthCheck,
+        repairAction: 'none'
+      };
+    }
+
+    // 如果缺失记录较多但没有损坏，进行初始化
+    if (healthCheck.missingRecords > 0 && healthCheck.corruptedRecords === 0) {
+      const initializedCount = this.initializeExistingData();
+      return {
+        healthCheck,
+        repairAction: 'initialize',
+        result: { initializedCount }
+      };
+    }
+
+    // 如果有损坏记录或缺失过多，进行重建
+    if (healthCheck.corruptedRecords > 0 ||
+        healthCheck.missingRecords > healthCheck.totalKeys * 0.5) {
+      const rebuildResult = this.rebuildAccessRecords();
+      return {
+        healthCheck,
+        repairAction: 'rebuild',
+        result: rebuildResult
+      };
+    }
+
+    return {
+      healthCheck,
+      repairAction: 'none'
+    };
+  }
+
+  /**
    * 销毁实例
    */
   destroy(): void {
