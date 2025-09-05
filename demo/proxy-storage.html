@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <script>
+        // 拦截 localStorage 的所有操作
+        (function () {
+            const originalStorage = window.localStorage;
+
+            const proxiedStorage = new Proxy(originalStorage, {
+                get(target, prop, receiver) {
+                    if (prop === 'getItem') {
+                        return function (key) {
+                            console.log(`[Proxy] getItem("${key}")`);
+                            return target.getItem(key);
+                        };
+                    }
+
+                    if (prop === 'setItem') {
+                        return function (key, value) {
+                            console.log(`[Proxy] setItem("${key}", "${value}")`);
+                            return target.setItem(key, value);
+                        };
+                    }
+
+                    if (prop === 'removeItem') {
+                        return function (key) {
+                            console.log(`[Proxy] removeItem("${key}")`);
+                            return target.removeItem(key);
+                        };
+                    }
+
+                    if (prop === 'clear') {
+                        return function () {
+                            console.log(`[Proxy] clear()`);
+                            return target.clear();
+                        };
+                    }
+
+                    // 其他方法/属性直接透传
+                    return Reflect.get(target, prop, receiver);
+                },
+            });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            // ? 只能使用proxiedStorage来操作才会代理到，所以加了 Object.defineProperty
+
+            // 替换全局 localStorage
+            Object.defineProperty(window, 'localStorage', {
+                value: proxiedStorage,
+                writable: true,
+                configurable: true,
+            });
+        })();
+
+        // 测试
+        localStorage.setItem("foo", "bar");
+        localStorage.getItem("foo");
+        localStorage.removeItem("foo");
+        localStorage.clear();</script>
+</body>
+
+</html>
