@@ -502,13 +502,13 @@ export class LRUStrategy implements ICleanupStrategy {
         if (!this.accessRecords[key]) {
           const size = this.estimateItemSize(key);
 
-          // 为存量数据设置一个较早的初始访问时间
-          // 这样它们在LRU算法中会有较低的优先级
-          const initialAccessTime = now - (24 * 60 * 60 * 1000); // 1天前
+          // 为存量数据设置当前时间作为初始访问时间
+          // 这样可以避免它们被立即清理，给用户一个合理的使用期
+          const initialAccessTime = now;
 
           this.accessRecords[key] = {
             lastAccess: initialAccessTime,
-            accessCount: 1, // 初始访问次数为1
+            accessCount: 2, // 给存量数据稍高的初始访问次数，提供一定保护
             size: size
           };
 
