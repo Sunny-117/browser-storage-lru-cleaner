@@ -1,22 +1,8 @@
 /**
  * 存储适配器接口
  */
-export interface IStorageAdapter {
-  /**
-   * 获取存储项
-   */
-  getItem(key: string): Promise<string | null> | string | null;
 
-  /**
-   * 设置存储项
-   */
-  setItem(key: string, value: string): Promise<void> | void;
-
-  /**
-   * 删除存储项
-   */
-  removeItem(key: string): Promise<void> | void;
-
+export interface IStorageAdapter extends Omit<Storage, 'length'> {
   /**
    * 获取所有键
    */
@@ -32,10 +18,6 @@ export interface IStorageAdapter {
    */
   getItemSize(key: string): Promise<number> | number;
 
-  /**
-   * 清空存储
-   */
-  clear(): Promise<void> | void;
 }
 
 /**
