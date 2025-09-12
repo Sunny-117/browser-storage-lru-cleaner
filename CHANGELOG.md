@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.0.16
+
+[compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.15...v0.0.16)
+
+### 🚀 Enhancements
+
+- Prompt ([c199e04](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/c199e04))
+- Demo proxy storage ([a137e77](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/a137e77))
+- 🎸 不重要的keys列表，智能插入会自动处理 ([123daa1](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/123daa1))
+- 🎸 cleanupOrphanedRecords ([c2fe7d6](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/c2fe7d6))
+- 🎸 为存量数据设置当前时间作为初始访问时间 ([a077ed0](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/a077ed0))
+
+### ❤️ Contributors
+
+- Sunny-117 <zhiqiangfu6@gmail.com>
+
 ## v0.0.15
 
 [compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.14...v0.0.15)
