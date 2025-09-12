@@ -21,7 +21,8 @@ const DEFAULT_CONFIG: IStorageCleanerConfig = {
   excludeKeys: [],
   enableTimeBasedCleanup: true, // 启用基于时间的清理
   timeCleanupThreshold: 7, // 7天未访问自动清理
-  cleanupOnInsert: true // 插入时触发清理
+  cleanupOnInsert: true, // 插入时触发清理
+  unimportantKeys: [] // 不重要的keys列表，智能插入会自动处理
 };
 
 /**
@@ -49,7 +50,8 @@ export class StorageCleaner {
       debug: this.config.debug,
       enableTimeBasedCleanup: this.config.enableTimeBasedCleanup,
       timeCleanupThreshold: this.config.timeCleanupThreshold,
-      cleanupOnInsert: this.config.cleanupOnInsert
+      cleanupOnInsert: this.config.cleanupOnInsert,
+      unimportantKeys: this.config.unimportantKeys
     });
 
     this.stats = {
@@ -128,13 +130,29 @@ export class StorageCleaner {
 
         if (prop === 'setItem') {
           return function(key: string, value: string) {
+            // 智能插入检查 - 优先进行，如果拒绝则不做任何操作
+            if (self.config.unimportantKeys && self.config.unimportantKeys.length > 0) {
+              // 检查是否应该拒绝插入（不重要的大数据且空间不足）
+              const shouldReject = self.shouldRejectInsertion(key);
+              console.log({key, value, shouldReject}, 'shouldReject')
+              if (shouldReject) {
+                if (self.config.debug) {
+                  console.log(`[StorageCleaner] 拒绝插入不重要数据: ${key} (${Utils.formatDataSize(Utils.estimateDataSize(value))})`);
+                }
+                return; // 直接返回，不做任何操作
+              }
+            }
+
             // 在设置前检查是否需要清理
             if (self.config.autoCleanup) {
-              self.checkAndCleanup(Utils.getStringByteSize(key) + Utils.getStringByteSize(value));
+              self.checkAndCleanup(Utils.estimateDataSize(key) + Utils.estimateDataSize(value));
             }
 
             target.setItem(key, value);
-            self.strategy.recordAccess(key);
+
+            // 记录访问
+            self.strategy.recordAccess(key, value);
+
             self.updateStats();
           };
         }
@@ -173,6 +191,29 @@ export class StorageCleaner {
       writable: true,
       configurable: true
     });
+  }
+
+  /**
+   * 判断是否应该拒绝插入（智能插入策略）
+   * 只有不重要的数据 && 空间不足时才拒绝插入
+   */
+  private shouldRejectInsertion(key: string): boolean {
+    // 检查是否为不重要的key
+    const isUnimportant = Utils.isUnimportantKey(key, this.config.unimportantKeys || []);
+
+    // 检查存储空间是否不足
+    const stats = this.getStats();
+    const isSpaceInsufficient = stats.usageRatio > this.config.cleanupThreshold;
+    console.log(isSpaceInsufficient, 'isSpaceInsufficient')
+
+    // 只有不重要的数据 && 空间不足时才拒绝插入
+    const shouldReject = isUnimportant && isSpaceInsufficient;
+
+    if (this.config.debug && shouldReject) {
+      console.log(`[StorageCleaner] 存储空间不足 (${Math.round(stats.usageRatio * 100)}%) 且为不重要数据，拒绝插入: ${key}`);
+    }
+
+    return shouldReject;
   }
 
   /**
@@ -562,6 +603,51 @@ export class StorageCleaner {
       healthCheck,
       repairAction: 'none'
     };
+  }
+
+  /**
+   * 配置不重要的keys（智能插入会自动处理）
+   */
+  configureUnimportantKeys(unimportantKeys: string[]): void {
+    this.config.unimportantKeys = unimportantKeys;
+
+    if (this.config.debug) {
+      console.log('[StorageCleaner] Unimportant keys configured:', {
+        unimportantKeys: this.config.unimportantKeys,
+        smartInsertionEnabled: this.config.unimportantKeys.length > 0
+      });
+    }
+  }
+
+  /**
+   * 获取智能插入统计信息
+   */
+  getSmartInsertionStats(): {
+    enabled: boolean;
+    unimportantKeysCount: number;
+    largeDataThreshold: string;
+  } {
+    return {
+      enabled: (this.config.unimportantKeys || []).length > 0,
+      unimportantKeysCount: (this.config.unimportantKeys || []).length,
+      largeDataThreshold: '5KB' // 内部固定阈值
+    };
+  }
+
+  /**
+   * 获取不重要keys的清理候选项
+   */
+  getUnimportantKeysCleanupCandidates(): Array<{
+    key: string;
+    size: string;
+    lastAccess: string;
+    isLarge: boolean;
+    accessCount: number;
+  }> {
+    if (this.strategy instanceof LRUStrategy) {
+      return (this.strategy as any).getUnimportantKeysCleanupCandidates();
+    }
+    return [];
   }
 
   /**

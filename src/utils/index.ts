@@ -214,6 +214,56 @@ export class Utils {
   }
 
   /**
+   * 检查key是否匹配不重要keys列表（简单字符串匹配）
+   */
+  static isUnimportantKey(key: string, unimportantKeys: string[]): boolean {
+    if (!unimportantKeys || unimportantKeys.length === 0) {
+      return false;
+    }
+
+    // 简单的字符串包含匹配
+    return unimportantKeys.some(pattern => key.includes(pattern));
+  }
+
+  /**
+   * 估算数据大小（字节）
+   */
+  static estimateDataSize(value: string): number {
+    // 使用Blob来准确估算字符串的字节大小
+    try {
+      return new Blob([value]).size;
+    } catch {
+      // 降级到简单估算：UTF-8字符平均2字节
+      return value.length * 2;
+    }
+  }
+
+  /**
+   * 检查是否为大数据（内部自动判断阈值）
+   */
+  static isLargeData(value: string): boolean {
+    const size = Utils.estimateDataSize(value);
+    // 内部智能判断：超过5KB认为是大数据
+    return size > 5 * 1024;
+  }
+
+  /**
+   * 格式化数据大小为可读字符串
+   */
+  static formatDataSize(bytes: number): string {
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = bytes;
+    let unitIndex = 0;
+
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+
+    return `${Math.round(size * 100) / 100} ${units[unitIndex]}`;
+  }
+
+  /**
    * 获取当前时间戳（毫秒）
    */
   static now(): number {

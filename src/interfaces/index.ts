@@ -44,8 +44,11 @@ export interface IStorageAdapter {
 export interface ICleanupStrategy {
   /**
    * 记录访问
+   * @param key 存储键
+   * @param value 可选的值，用于智能插入判断
+   * @returns 如果启用智能插入且被拒绝则返回false，否则返回true
    */
-  recordAccess(key: string): void;
+  recordAccess(key: string, value?: string): boolean;
 
   /**
    * 获取需要清理的键列表
@@ -111,6 +114,13 @@ export interface IStorageCleanerConfig {
    * 是否在插入新数据时触发时间清理
    */
   cleanupOnInsert?: boolean;
+
+  /**
+   * 不重要的keys列表
+   * 这些keys在空间不足时会被优先清理，且如果是大数据会被拒绝插入
+   * 支持简单的字符串匹配，如 'temp_data', 'cache_item' 等
+   */
+  unimportantKeys?: string[];
 
   /**
    * 清理策略

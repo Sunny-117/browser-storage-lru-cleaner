@@ -14,6 +14,7 @@ export class LRUStrategy implements ICleanupStrategy {
     enableTimeBasedCleanup: boolean;
     timeCleanupThreshold: number;
     cleanupOnInsert: boolean;
+    unimportantKeys: string[];
   };
   private accessRecordsKey: string;
   private debugRecordsKey: string;
@@ -27,6 +28,7 @@ export class LRUStrategy implements ICleanupStrategy {
       enableTimeBasedCleanup?: boolean;
       timeCleanupThreshold?: number;
       cleanupOnInsert?: boolean;
+      unimportantKeys?: string[];
     }
   ) {
     this.storageAdapter = storageAdapter;
@@ -36,7 +38,8 @@ export class LRUStrategy implements ICleanupStrategy {
       debug: config.debug || false,
       enableTimeBasedCleanup: config.enableTimeBasedCleanup || false,
       timeCleanupThreshold: config.timeCleanupThreshold || 7, // 默认7天
-      cleanupOnInsert: config.cleanupOnInsert !== false // 默认启用
+      cleanupOnInsert: config.cleanupOnInsert !== false, // 默认启用
+      unimportantKeys: config.unimportantKeys || []
     };
     this.accessRecordsKey = Utils.generateStorageKey('lru', 'access_records');
     this.debugRecordsKey = Utils.generateStorageKey('lru', 'debug_records');
@@ -66,13 +69,15 @@ export class LRUStrategy implements ICleanupStrategy {
     }
   }
 
+
+
   /**
    * 记录访问
    */
-  recordAccess(key: string): void {
+  recordAccess(key: string, value?: string): boolean {
     // 跳过系统键和排除的键
     if (Utils.isSystemKey(key) || this.config.excludeKeys.includes(key)) {
-      return;
+      return true;
     }
 
     const now = Utils.now();
@@ -81,11 +86,15 @@ export class LRUStrategy implements ICleanupStrategy {
     if (existing) {
       existing.lastAccess = now;
       existing.accessCount++;
+      // 更新大小（如果提供了新值）
+      if (value) {
+        existing.size = Utils.estimateDataSize(value);
+      }
     } else {
       this.accessRecords[key] = {
         lastAccess: now,
         accessCount: 1,
-        size: 0 // 将在需要时计算
+        size: value ? Utils.estimateDataSize(value) : 0
       };
     }
 
@@ -98,8 +107,10 @@ export class LRUStrategy implements ICleanupStrategy {
     this.saveAccessRecordsDebounced();
 
     if (this.config.debug) {
-      console.log(`[LRU] Recorded access for key: ${key}`);
+      console.log(`[LRU] Recorded access for key: ${key}${value ? ` (${Utils.formatDataSize(Utils.estimateDataSize(value))})` : ''}`);
     }
+
+    return true; // 成功记录访问
   }
 
   /**
@@ -135,27 +146,103 @@ export class LRUStrategy implements ICleanupStrategy {
     // 更新键的大小信息（同步版本）
     this.updateKeySizesSync(cleanableKeys);
 
-    // 按LRU算法排序：最近最少使用的在前
-    const sortedKeys = this.sortKeysByLRU(cleanableKeys);
+    // 分层清理策略
+    const keysToCleanup = this.getLayeredCleanupKeys(cleanableKeys, spaceToFree);
+    const freedSpace = keysToCleanup.reduce((total, key) => {
+      const record = this.accessRecords[key];
+      return total + (record ? record.size : 0);
+    }, 0);
 
-    // 选择要清理的键
+    if (this.config.debug) {
+      console.log(`[LRU] Selected ${keysToCleanup.length} keys for cleanup, will free ${Utils.formatDataSize(freedSpace)}`);
+    }
+
+    return keysToCleanup;
+  }
+
+  /**
+   * 分层清理策略：优先清理不重要的大数据，然后使用LRU
+   */
+  private getLayeredCleanupKeys(cleanableKeys: string[], spaceToFree: number): string[] {
     const keysToCleanup: string[] = [];
     let freedSpace = 0;
 
-    for (const key of sortedKeys) {
+    // 第一层：清理不重要的大数据（按大小降序）
+    const unimportantLargeKeys = cleanableKeys
+      .filter(key => {
+        const isUnimportant = Utils.isUnimportantKey(key, this.config.unimportantKeys || []);
+        const record = this.accessRecords[key];
+        const isLarge = record && record.size > 5 * 1024; // 内部固定5KB阈值
+        return isUnimportant && isLarge;
+      })
+      .sort((a, b) => {
+        const sizeA = this.accessRecords[a]?.size || 0;
+        const sizeB = this.accessRecords[b]?.size || 0;
+        return sizeB - sizeA; // 大的在前
+      });
+
+    for (const key of unimportantLargeKeys) {
+      const record = this.accessRecords[key];
+      if (record) {
+        keysToCleanup.push(key);
+        freedSpace += record.size;
+
+        if (this.config.debug) {
+          console.log(`[LRU] 清理不重要的大数据: ${key} (${Utils.formatDataSize(record.size)})`);
+        }
+
+        if (freedSpace >= spaceToFree) {
+          return keysToCleanup;
+        }
+      }
+    }
+
+    // 第二层：清理其他不重要的数据（按LRU排序）
+    const otherUnimportantKeys = cleanableKeys
+      .filter(key => {
+        const isUnimportant = Utils.isUnimportantKey(key, this.config.unimportantKeys || []);
+        const record = this.accessRecords[key];
+        const isLarge = record && record.size > 5 * 1024; // 内部固定5KB阈值
+        return isUnimportant && !isLarge && !keysToCleanup.includes(key);
+      });
+
+    const sortedUnimportantKeys = this.sortKeysByLRU(otherUnimportantKeys);
+
+    for (const key of sortedUnimportantKeys) {
       const record = this.accessRecords[key];
       if (record) {
         keysToCleanup.push(key);
         freedSpace += record.size;
 
         if (freedSpace >= spaceToFree) {
-          break;
+          return keysToCleanup;
         }
       }
     }
 
-    if (this.config.debug) {
-      console.log(`[LRU] Selected ${keysToCleanup.length} keys for cleanup, will free ${Utils.formatBytes(freedSpace)}`);
+    // 第三层：清理重要数据（按LRU排序）
+    const importantKeys = cleanableKeys
+      .filter(key => {
+        const isUnimportant = Utils.isUnimportantKey(key, this.config.unimportantKeys || []);
+        return !isUnimportant && !keysToCleanup.includes(key);
+      });
+
+    const sortedImportantKeys = this.sortKeysByLRU(importantKeys);
+
+    for (const key of sortedImportantKeys) {
+      const record = this.accessRecords[key];
+      if (record) {
+        keysToCleanup.push(key);
+        freedSpace += record.size;
+
+        if (this.config.debug) {
+          console.log(`[LRU] 清理重要数据: ${key} (${Utils.formatDataSize(record.size)})`);
+        }
+
+        if (freedSpace >= spaceToFree) {
+          break;
+        }
+      }
     }
 
     return keysToCleanup;
@@ -459,12 +546,12 @@ export class LRUStrategy implements ICleanupStrategy {
       if (this.config.debug && result.debug) {
         await this.storageAdapter.setItem(this.debugRecordsKey, result.debug);
 
-        console.log(`[LRU] Saved access records with compression:`);
-        const debugInfo = JSON.parse(result.debug);
-        console.log(`  - Original: ${debugInfo.originalCount} records`);
-        console.log(`  - Compressed: ${debugInfo.compressedCount} records`);
-        console.log(`  - Size reduction: ${debugInfo.compressionRatio}`);
-        console.log(`  - Storage size: ${Utils.formatBytes(result.compressed.length)}`);
+        // console.log(`[LRU] Saved access records with compression:`);
+        // const debugInfo = JSON.parse(result.debug);
+        // console.log(`  - Original: ${debugInfo.originalCount} records`);
+        // console.log(`  - Compressed: ${debugInfo.compressedCount} records`);
+        // console.log(`  - Size reduction: ${debugInfo.compressionRatio}`);
+        // console.log(`  - Storage size: ${Utils.formatBytes(result.compressed.length)}`);
       }
     } catch (error) {
       console.warn('[LRU] Failed to save access records:', error);
@@ -750,6 +837,50 @@ export class LRUStrategy implements ICleanupStrategy {
     }
 
     return expiringKeys.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
+  }
+
+  /**
+   * 获取不重要keys的清理候选项
+   */
+  getUnimportantKeysCleanupCandidates(): Array<{
+    key: string;
+    size: string;
+    lastAccess: string;
+    isLarge: boolean;
+    accessCount: number;
+  }> {
+    const candidates: Array<{
+      key: string;
+      size: string;
+      lastAccess: string;
+      isLarge: boolean;
+      accessCount: number;
+    }> = [];
+
+    for (const [key, record] of Object.entries(this.accessRecords)) {
+      if (Utils.isSystemKey(key) || this.config.excludeKeys.includes(key)) {
+        continue;
+      }
+
+      const isUnimportant = Utils.isUnimportantKey(key, this.config.unimportantKeys || []);
+      if (isUnimportant) {
+        const isLarge = record.size > 5 * 1024; // 内部固定5KB阈值
+        candidates.push({
+          key,
+          size: Utils.formatDataSize(record.size),
+          lastAccess: Utils.formatDate(record.lastAccess),
+          isLarge,
+          accessCount: record.accessCount
+        });
+      }
+    }
+
+    // 按大小降序排列，大的在前
+    return candidates.sort((a, b) => {
+      const sizeA = this.accessRecords[a.key]?.size || 0;
+      const sizeB = this.accessRecords[b.key]?.size || 0;
+      return sizeB - sizeA;
+    });
   }
 
   /**

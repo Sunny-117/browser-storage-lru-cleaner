@@ -11,10 +11,10 @@ const cleaner = createLocalStorageCleaner({
     cleanupRatio: 0.5, // 清理50%的数据
     autoCleanup: true,
     debug: true,
-    // enableTimeBasedCleanup: false, // 启用基于时间的清理
-    // timeCleanupThreshold: 0.1, // 0.1天(约2.4小时)未访问自动清理 - 便于测试
-    // // timeCleanupThreshold: 10 / (24 * 60 * 60),
-    // cleanupOnInsert: true // 插入时触发清理
+    enableTimeBasedCleanup: true, // 启用基于时间的清理
+    timeCleanupThreshold: 1, // 1天未访问自动清理 - 便于测试
+    cleanupOnInsert: true, // 插入时触发清理
+    unimportantKeys: ['recording', 'temp', 'cache'] // 不重要的keys（简单字符串匹配，智能插入自动处理）
 });
 
 export default function BasicExample() {
@@ -26,6 +26,8 @@ export default function BasicExample() {
     const [timeCleanupStats, setTimeCleanupStats] = useState<any>(null);
     const [expiringKeys, setExpiringKeys] = useState<any[]>([]);
     const [accessRecordsHealth, setAccessRecordsHealth] = useState<any>(null);
+    const [smartInsertionStats, setSmartInsertionStats] = useState<any>({});
+    const [unimportantKeysCleanupCandidates, setUnimportantKeysCleanupCandidates] = useState<any[]>([]);
 
     const addLog = (message: string) => {
         const time = Utils.formatDate(Utils.nowDate()).split(' ')[1]; // 只取时间部分
@@ -56,6 +58,40 @@ export default function BasicExample() {
 
         localStorage.setItem(key, value);
         addLog(`📝 添加${size}数据: ${key} (${Math.round(sizes[size] / 1024 * 10) / 10}KB)`);
+        updateStats();
+    };
+
+    // 添加不重要的大数据（测试智能插入）
+    const addUnimportantLargeData = () => {
+        const key = `recording_${Date.now()}`;
+        const value = 'x'.repeat(5000); // 5KB 大数据
+
+        try {
+            localStorage.setItem(key, value);
+            addLog(`🎬 尝试添加录屏数据: ${key} (5KB)`);
+        } catch (error) {
+            addLog(`❌ 添加录屏数据失败: ${error}`);
+        }
+        updateStats();
+    };
+
+    // 添加不重要的小数据
+    const addUnimportantSmallData = () => {
+        const key = `temp_${Date.now()}`;
+        const value = 'x'.repeat(500); // 0.5KB 小数据
+
+        localStorage.setItem(key, value);
+        addLog(`📄 添加临时数据: ${key} (0.5KB)`);
+        updateStats();
+    };
+
+    // 添加重要的大数据
+    const addImportantLargeData = () => {
+        const key = `important_${Date.now()}`;
+        const value = 'x'.repeat(5000); // 5KB 大数据
+
+        localStorage.setItem(key, value);
+        addLog(`⭐ 添加重要数据: ${key} (5KB)`);
         updateStats();
     };
 
@@ -184,6 +220,29 @@ export default function BasicExample() {
         }
     };
 
+    // 获取智能插入统计
+    const updateSmartInsertionStats = () => {
+        try {
+            const stats = cleaner.getSmartInsertionStats();
+            setSmartInsertionStats(stats);
+        } catch (error) {
+            addLog(`❌ 获取智能插入统计失败: ${error}`);
+        }
+    };
+
+    // 获取不重要keys清理候选项
+    const updateUnimportantKeysCleanupCandidates = () => {
+        try {
+            const candidates = cleaner.getUnimportantKeysCleanupCandidates();
+            setUnimportantKeysCleanupCandidates(candidates);
+            if (candidates.length > 0) {
+                addLog(`🗑️ 发现 ${candidates.length} 个不重要的清理候选项`);
+            }
+        } catch (error) {
+            addLog(`❌ 获取不重要keys清理候选项失败: ${error}`);
+        }
+    };
+
     // 创建一些旧数据用于测试时间清理
     const createOldData = () => {
         // 创建一些"旧"数据（通过修改访问记录来模拟）
@@ -266,6 +325,8 @@ export default function BasicExample() {
         const interval = setInterval(() => {
             updateStats();
             updateTimeCleanupStats();
+            updateSmartInsertionStats();
+            updateUnimportantKeysCleanupCandidates();
         }, 1000);
         return () => clearInterval(interval);
     }, []);
@@ -359,6 +420,35 @@ export default function BasicExample() {
                         <button onClick={simulateDataLoss} style={{ ...buttonStyle, background: '#dc3545' }}>模拟丢失</button>
                         <button onClick={loadDebugInfo} style={{ ...buttonStyle, background: '#fd7e14' }}>调试信息</button>
                         <button onClick={clearAll} style={{ ...buttonStyle, background: '#dc3545' }}>清空所有</button>
+                    </div>
+                )}
+
+                {/* 智能插入测试区域 */}
+                {isStarted && (
+                    <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: '5px' }}>
+                        <h3 style={{ margin: '0 0 15px 0', color: '#495057' }}>🧠 智能插入测试</h3>
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                            <button onClick={addUnimportantLargeData} style={{ ...buttonStyle, background: '#dc3545' }}>
+                                录屏数据(5KB) - 不重要大数据
+                            </button>
+                            <button onClick={addUnimportantSmallData} style={{ ...buttonStyle, background: '#fd7e14' }}>
+                                临时数据(0.5KB) - 不重要小数据
+                            </button>
+                            <button onClick={addImportantLargeData} style={{ ...buttonStyle, background: '#20c997' }}>
+                                重要数据(5KB) - 重要大数据
+                            </button>
+                        </div>
+
+                        {/* 智能插入统计 */}
+                        <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#e9ecef', borderRadius: '3px' }}>
+                            <strong>智能插入状态:</strong>
+                            <div>启用: {smartInsertionStats.enabled ? '是' : '否'}</div>
+                            <div>不重要keys数量: {smartInsertionStats.unimportantKeysCount}</div>
+                            <div>大数据阈值: {smartInsertionStats.largeDataThreshold}</div>
+                            {unimportantKeysCleanupCandidates.length > 0 && (
+                                <div>不重要清理候选: {unimportantKeysCleanupCandidates.length}个</div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
