@@ -188,14 +188,14 @@ export class LRUStrategy implements ICleanupStrategy {
 
     // 分层清理策略
     const keysToCleanup = this.getLayeredCleanupKeys(cleanableKeys, spaceToFree);
-    const freedSpace = keysToCleanup.reduce((total, key) => {
-      const record = this.accessRecords[key];
-      return total + (record ? record.size : 0);
-    }, 0);
+    // const freedSpace = keysToCleanup.reduce((total, key) => {
+    //   const record = this.accessRecords[key];
+    //   return total + (record ? record.size : 0);
+    // }, 0);
 
-    if (this.config.debug) {
-      console.log(`[LRU] Selected ${keysToCleanup.length} keys for cleanup, will free ${Utils.formatDataSize(freedSpace)}`);
-    }
+    // if (this.config.debug) {
+    //   console.log(`[LRU] Selected ${keysToCleanup.length} keys for cleanup, will free ${Utils.formatDataSize(freedSpace)}`);
+    // }
 
     return keysToCleanup;
   }
@@ -296,9 +296,9 @@ export class LRUStrategy implements ICleanupStrategy {
       // 从访问记录中删除
       delete this.accessRecords[key];
 
-      if (this.config.debug) {
-        console.log(`[LRU] Cleaned up key: ${key}`);
-      }
+      // if (this.config.debug) {
+      //   console.log(`[LRU] Cleaned up key: ${key}`);
+      // }
     }
 
     // 保存更新后的访问记录

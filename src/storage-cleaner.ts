@@ -137,6 +137,7 @@ export class StorageCleaner {
               // 检查是否应该拒绝插入（不重要的大数据且空间不足）
               const shouldReject = self.shouldRejectInsertion(key);
               if (shouldReject) {
+                // TODO: 可以增加业务埋点 暴露log接口，统计收益
                 if (self.config.debug) {
                   console.log(`[StorageCleaner] 拒绝插入不重要数据: ${key} (${Utils.formatDataSize(Utils.estimateDataSize(value))})`);
                 }
@@ -267,10 +268,10 @@ export class StorageCleaner {
       this.stats.lastCleanup = Utils.now();
       this.updateStats();
 
-      if (this.config.debug) {
-        const newSize = await this.adapter.getStorageSize();
-        console.log(`[StorageCleaner] Cleaned up ${keysToCleanup.length} keys, freed ${Utils.formatBytes(currentSize - newSize)}`);
-      }
+      // if (this.config.debug) {
+      //   const newSize = await this.adapter.getStorageSize();
+      //   console.log(`[StorageCleaner] Cleaned up ${keysToCleanup.length} keys, freed ${Utils.formatBytes(currentSize - newSize)}`);
+      // }
     } catch (error) {
       console.error('[StorageCleaner] Failed to cleanup:', error);
     }
