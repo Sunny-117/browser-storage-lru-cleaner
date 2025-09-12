@@ -204,7 +204,6 @@ export class StorageCleaner {
     // 检查存储空间是否不足
     const stats = this.getStats();
     const isSpaceInsufficient = stats.usageRatio > this.config.cleanupThreshold;
-    console.log(isSpaceInsufficient, 'isSpaceInsufficient')
 
     // 只有不重要的数据 && 空间不足时才拒绝插入
     const shouldReject = isUnimportant && isSpaceInsufficient;
@@ -648,6 +647,35 @@ export class StorageCleaner {
       return (this.strategy as any).getUnimportantKeysCleanupCandidates();
     }
     return [];
+  }
+
+  /**
+   * 手动清理孤立的访问记录
+   * 删除records中存在但storage中不存在的key记录
+   */
+  cleanupOrphanedRecords(): {
+    cleanedCount: number;
+    orphanedKeys: string[];
+  } {
+    if (this.strategy instanceof LRUStrategy) {
+      const beforeCount = Object.keys((this.strategy as any).accessRecords).length;
+      (this.strategy as any).cleanupOrphanedRecords();
+      const afterCount = Object.keys((this.strategy as any).accessRecords).length;
+
+      const cleanedCount = beforeCount - afterCount;
+      const result = {
+        cleanedCount,
+        orphanedKeys: [] // 实际的孤立keys在cleanupOrphanedRecords方法中已经被删除
+      };
+
+      if (this.config.debug) {
+        console.log(`[StorageCleaner] 手动清理孤立记录完成: 清理了 ${cleanedCount} 个记录`);
+      }
+
+      return result;
+    }
+
+    return { cleanedCount: 0, orphanedKeys: [] };
   }
 
   /**

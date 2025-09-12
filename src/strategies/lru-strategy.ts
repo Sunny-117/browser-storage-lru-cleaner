@@ -56,6 +56,9 @@ export class LRUStrategy implements ICleanupStrategy {
       // 先加载访问记录
       await this.loadAccessRecords();
 
+      // 清理孤立的访问记录（records中有但storage中没有的key）
+      this.cleanupOrphanedRecords();
+
       // 然后初始化存量数据
       this.initializeExistingData();
 
@@ -69,7 +72,52 @@ export class LRUStrategy implements ICleanupStrategy {
     }
   }
 
+  /**
+   * 清理孤立的访问记录
+   * 删除records中存在但storage中不存在的key记录
+   */
+  private cleanupOrphanedRecords(): void {
+    try {
+      const allKeys = this.getAllStorageKeys();
+      const allKeysSet = new Set(allKeys);
+      const recordKeys = Object.keys(this.accessRecords);
 
+      let cleanedCount = 0;
+      const orphanedKeys: string[] = [];
+
+      // 找出孤立的记录（records中有但storage中没有的）
+      for (const recordKey of recordKeys) {
+        // 跳过系统键
+        if (Utils.isSystemKey(recordKey)) {
+          continue;
+        }
+
+        // 如果storage中没有这个key，说明是孤立记录
+        if (!allKeysSet.has(recordKey)) {
+          orphanedKeys.push(recordKey);
+          delete this.accessRecords[recordKey];
+          cleanedCount++;
+        }
+      }
+
+      if (cleanedCount > 0) {
+        // 保存更新后的访问记录
+        this.saveAccessRecordsDebounced();
+
+        if (this.config.debug) {
+          console.log(`[LRU] 清理了 ${cleanedCount} 个孤立的访问记录:`);
+          orphanedKeys.slice(0, 5).forEach(key => {
+            console.log(`  - ${key}`);
+          });
+          if (orphanedKeys.length > 5) {
+            console.log(`  - ... 还有 ${orphanedKeys.length - 5} 个`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[LRU] Failed to cleanup orphaned records:', error);
+    }
+  }
 
   /**
    * 记录访问
