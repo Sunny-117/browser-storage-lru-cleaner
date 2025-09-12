@@ -86,11 +86,6 @@ export interface IStorageCleanerConfig {
   cleanupThreshold: number;
 
   /**
-   * 清理比例（0-1之间，表示每次清理释放的空间比例）
-   */
-  cleanupRatio: number;
-
-  /**
    * 访问记录的最大保存时间（毫秒）
    */
   maxAccessAge: number;

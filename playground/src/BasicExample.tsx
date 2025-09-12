@@ -8,17 +8,15 @@ import { createLocalStorageCleaner, Utils } from 'browser-storage-lru-cleaner';
 const cleaner = createLocalStorageCleaner({
     maxStorageSize: 10 * 1024, // 10KB - 很小的容量
     cleanupThreshold: 0.7, // 70%时开始清理
-    cleanupRatio: 0.5, // 清理50%的数据
     autoCleanup: true,
     debug: true,
-    enableTimeBasedCleanup: true, // 启用基于时间的清理
-    timeCleanupThreshold: 1, // 1天未访问自动清理 - 便于测试
+    enableTimeBasedCleanup: false, // 启用基于时间的清理
+    // timeCleanupThreshold: 1, // 1天未访问自动清理 - 便于测试
     cleanupOnInsert: true, // 插入时触发清理
     unimportantKeys: ['recording', 'temp', 'cache'] // 不重要的keys（简单字符串匹配，智能插入自动处理）
 });
 
 export default function BasicExample() {
-    const [isStarted, setIsStarted] = useState(false);
     const [logs, setLogs] = useState<string[]>([]);
     const [stats, setStats] = useState(cleaner.getStats());
     const [debugInfo, setDebugInfo] = useState<any>(null);
@@ -41,9 +39,11 @@ export default function BasicExample() {
     // 开始测试
     const startTest = () => {
         cleaner.installProxy();
-        setIsStarted(true);
         addLog('✅ 代理已安装，开始监控');
     };
+    useEffect(() => {
+        startTest()
+    }, [])
 
     // 添加数据
     const addData = (size: 'small' | 'medium' | 'large') => {
@@ -388,69 +388,49 @@ export default function BasicExample() {
 
             {/* 控制按钮 */}
             <div style={{ marginBottom: '20px' }}>
-                {!isStarted ? (
-                    <button
-                        onClick={startTest}
-                        style={{
-                            padding: '10px 20px',
-                            fontSize: '16px',
-                            background: '#007bff',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '5px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        开始测试
-                    </button>
-                ) : (
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button onClick={() => addData('small')} style={buttonStyle}>添加小数据(1KB)</button>
+                    <button onClick={() => addData('medium')} style={buttonStyle}>添加中数据(2KB)</button>
+                    <button onClick={() => addData('large')} style={buttonStyle}>添加大数据(3KB)</button>
+                    <button onClick={accessData} style={{ ...buttonStyle, background: '#28a745' }}>随机访问</button>
+                    <button onClick={manualCleanup} style={{ ...buttonStyle, background: '#ffc107', color: '#000' }}>手动清理</button>
+                    <button onClick={optimizeStorage} style={{ ...buttonStyle, background: '#17a2b8' }}>优化存储</button>
+                    <button onClick={showCleanupCandidates} style={{ ...buttonStyle, background: '#6f42c1' }}>清理预览</button>
+                    <button onClick={triggerTimeCleanup} style={{ ...buttonStyle, background: '#e83e8c' }}>时间清理</button>
+                    <button onClick={showExpiringKeys} style={{ ...buttonStyle, background: '#20c997' }}>过期预警</button>
+                    <button onClick={createOldData} style={{ ...buttonStyle, background: '#6c757d' }}>创建旧数据</button>
+                    <button onClick={checkAccessRecordsHealth} style={{ ...buttonStyle, background: '#17a2b8' }}>健康检查</button>
+                    <button onClick={autoRepairAccessRecords} style={{ ...buttonStyle, background: '#28a745' }}>自动修复</button>
+                    <button onClick={simulateDataLoss} style={{ ...buttonStyle, background: '#dc3545' }}>模拟丢失</button>
+                    <button onClick={loadDebugInfo} style={{ ...buttonStyle, background: '#fd7e14' }}>调试信息</button>
+                    <button onClick={clearAll} style={{ ...buttonStyle, background: '#dc3545' }}>清空所有</button>
+                </div>
+
+                <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: '5px' }}>
+                    <h3 style={{ margin: '0 0 15px 0', color: '#495057' }}>🧠 智能插入测试</h3>
                     <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        <button onClick={() => addData('small')} style={buttonStyle}>添加小数据(1KB)</button>
-                        <button onClick={() => addData('medium')} style={buttonStyle}>添加中数据(2KB)</button>
-                        <button onClick={() => addData('large')} style={buttonStyle}>添加大数据(3KB)</button>
-                        <button onClick={accessData} style={{ ...buttonStyle, background: '#28a745' }}>随机访问</button>
-                        <button onClick={manualCleanup} style={{ ...buttonStyle, background: '#ffc107', color: '#000' }}>手动清理</button>
-                        <button onClick={optimizeStorage} style={{ ...buttonStyle, background: '#17a2b8' }}>优化存储</button>
-                        <button onClick={showCleanupCandidates} style={{ ...buttonStyle, background: '#6f42c1' }}>清理预览</button>
-                        <button onClick={triggerTimeCleanup} style={{ ...buttonStyle, background: '#e83e8c' }}>时间清理</button>
-                        <button onClick={showExpiringKeys} style={{ ...buttonStyle, background: '#20c997' }}>过期预警</button>
-                        <button onClick={createOldData} style={{ ...buttonStyle, background: '#6c757d' }}>创建旧数据</button>
-                        <button onClick={checkAccessRecordsHealth} style={{ ...buttonStyle, background: '#17a2b8' }}>健康检查</button>
-                        <button onClick={autoRepairAccessRecords} style={{ ...buttonStyle, background: '#28a745' }}>自动修复</button>
-                        <button onClick={simulateDataLoss} style={{ ...buttonStyle, background: '#dc3545' }}>模拟丢失</button>
-                        <button onClick={loadDebugInfo} style={{ ...buttonStyle, background: '#fd7e14' }}>调试信息</button>
-                        <button onClick={clearAll} style={{ ...buttonStyle, background: '#dc3545' }}>清空所有</button>
+                        <button onClick={addUnimportantLargeData} style={{ ...buttonStyle, background: '#dc3545' }}>
+                            录屏数据(5KB) - 不重要大数据
+                        </button>
+                        <button onClick={addUnimportantSmallData} style={{ ...buttonStyle, background: '#fd7e14' }}>
+                            临时数据(0.5KB) - 不重要小数据
+                        </button>
+                        <button onClick={addImportantLargeData} style={{ ...buttonStyle, background: '#20c997' }}>
+                            重要数据(5KB) - 重要大数据
+                        </button>
                     </div>
-                )}
 
-                {/* 智能插入测试区域 */}
-                {isStarted && (
-                    <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: '5px' }}>
-                        <h3 style={{ margin: '0 0 15px 0', color: '#495057' }}>🧠 智能插入测试</h3>
-                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                            <button onClick={addUnimportantLargeData} style={{ ...buttonStyle, background: '#dc3545' }}>
-                                录屏数据(5KB) - 不重要大数据
-                            </button>
-                            <button onClick={addUnimportantSmallData} style={{ ...buttonStyle, background: '#fd7e14' }}>
-                                临时数据(0.5KB) - 不重要小数据
-                            </button>
-                            <button onClick={addImportantLargeData} style={{ ...buttonStyle, background: '#20c997' }}>
-                                重要数据(5KB) - 重要大数据
-                            </button>
-                        </div>
-
-                        {/* 智能插入统计 */}
-                        <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#e9ecef', borderRadius: '3px' }}>
-                            <strong>智能插入状态:</strong>
-                            <div>启用: {smartInsertionStats.enabled ? '是' : '否'}</div>
-                            <div>不重要keys数量: {smartInsertionStats.unimportantKeysCount}</div>
-                            <div>大数据阈值: {smartInsertionStats.largeDataThreshold}</div>
-                            {unimportantKeysCleanupCandidates.length > 0 && (
-                                <div>不重要清理候选: {unimportantKeysCleanupCandidates.length}个</div>
-                            )}
-                        </div>
+                    {/* 智能插入统计 */}
+                    <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#e9ecef', borderRadius: '3px' }}>
+                        <strong>智能插入状态:</strong>
+                        <div>启用: {smartInsertionStats.enabled ? '是' : '否'}</div>
+                        <div>不重要keys数量: {smartInsertionStats.unimportantKeysCount}</div>
+                        <div>大数据阈值: {smartInsertionStats.largeDataThreshold}</div>
+                        {unimportantKeysCleanupCandidates.length > 0 && (
+                            <div>不重要清理候选: {unimportantKeysCleanupCandidates.length}个</div>
+                        )}
                     </div>
-                )}
+                </div>
             </div>
 
             {/* 日志 */}
@@ -575,42 +555,6 @@ export default function BasicExample() {
                 </div>
             )}
 
-            {/* 使用说明 */}
-            <div style={{ marginTop: '20px', padding: '15px', background: '#e7f3ff', borderRadius: '5px' }}>
-                <h3>💡 测试步骤</h3>
-                <ol>
-                    <li>点击"开始测试"安装代理</li>
-                    <li>点击"添加数据"按钮多次添加数据，观察使用率变化</li>
-                    <li>当使用率超过70%时，会自动触发清理（观察日志）</li>
-                    <li>点击"随机访问"可以更新某些数据的LRU状态</li>
-                    <li>点击"清理预览"查看哪些数据最可能被清理</li>
-                    <li>点击"优化存储"手动优化存储空间</li>
-                    <li>点击"时间清理"手动清理过期数据</li>
-                    <li>点击"过期预警"查看即将过期的数据</li>
-                    <li>点击"创建旧数据"创建一些旧数据用于测试时间清理</li>
-                    <li>点击"健康检查"检查访问记录的完整性</li>
-                    <li>点击"自动修复"自动修复访问记录问题</li>
-                    <li>点击"模拟丢失"模拟访问记录丢失场景</li>
-                    <li>点击"调试信息"查看详细的压缩和存储信息</li>
-                </ol>
-                <p><strong>注意：</strong>打开浏览器控制台可以看到更详细的调试信息</p>
-
-                <div style={{ marginTop: '15px', padding: '10px', background: '#fff3cd', borderRadius: '4px' }}>
-                    <h4>🆕 新功能说明</h4>
-                    <ul>
-                        <li><strong>优化存储：</strong>使用高级压缩算法，减少元数据占用空间</li>
-                        <li><strong>清理预览：</strong>显示最可能被清理的数据项和优先级</li>
-                        <li><strong>时间清理：</strong>自动清理超过N天未访问的数据（当前设置：0.1天=2.4小时）</li>
-                        <li><strong>过期预警：</strong>显示即将过期的数据项，提前预警</li>
-                        <li><strong>存量数据代理：</strong>SDK初始化时自动为已存在的数据创建访问记录</li>
-                        <li><strong>访问记录兜底：</strong>自动检测和修复访问记录丢失或损坏问题</li>
-                        <li><strong>健康检查：</strong>实时监控访问记录的完整性和健康状态</li>
-                        <li><strong>自动修复：</strong>智能修复访问记录，支持初始化和重建</li>
-                        <li><strong>调试信息：</strong>显示压缩率、存储统计等详细信息</li>
-                        <li><strong>智能限制：</strong>自动限制访问记录数量，防止无限增长</li>
-                    </ul>
-                </div>
-            </div>
         </div>
     );
 }

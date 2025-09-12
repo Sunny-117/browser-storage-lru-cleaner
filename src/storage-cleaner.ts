@@ -14,7 +14,6 @@ import { Utils } from './utils';
 const DEFAULT_CONFIG: IStorageCleanerConfig = {
   maxStorageSize: 5 * 1024 * 1024, // 5MB
   cleanupThreshold: 0.8, // 80%
-  cleanupRatio: 0.3, // 清理30%
   maxAccessAge: 7 * 24 * 60 * 60 * 1000, // 7天
   autoCleanup: true,
   debug: false,
@@ -131,10 +130,11 @@ export class StorageCleaner {
         if (prop === 'setItem') {
           return function(key: string, value: string) {
             // 智能插入检查 - 优先进行，如果拒绝则不做任何操作
+            console.log(self.config.unimportantKeys, 'self.config.unimportantKeys')
             if (self.config.unimportantKeys && self.config.unimportantKeys.length > 0) {
               // 检查是否应该拒绝插入（不重要的大数据且空间不足）
               const shouldReject = self.shouldRejectInsertion(key);
-              console.log({key, value, shouldReject}, 'shouldReject')
+              console.log(shouldReject, 'shouldReject')
               if (shouldReject) {
                 if (self.config.debug) {
                   console.log(`[StorageCleaner] 拒绝插入不重要数据: ${key} (${Utils.formatDataSize(Utils.estimateDataSize(value))})`);
