@@ -1,6 +1,24 @@
 # Changelog
 
 
+## v0.0.17
+
+[compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.16...v0.0.17)
+
+### 💅 Refactors
+
+- 💡 存储适配器接口 ([a1d9e2c](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/a1d9e2c))
+- 💡 exports ([4f76243](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/4f76243))
+- 💡 debug logs ([ec22c9d](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/ec22c9d))
+
+### 🏡 Chore
+
+- 🤖 remove cleanupRatio ([cb6e19b](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/cb6e19b))
+
+### ❤️ Contributors
+
+- Sunny-117 <zhiqiangfu6@gmail.com>
+
 ## v0.0.16
 
 [compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.15...v0.0.16)
