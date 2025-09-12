@@ -61,10 +61,6 @@ export class LRUStrategy implements ICleanupStrategy {
 
       // 然后初始化存量数据
       this.initializeExistingData();
-
-      if (this.config.debug) {
-        console.log('[LRU] Strategy initialized successfully');
-      }
     } catch (error) {
       console.error('[LRU] Failed to initialize strategy:', error);
       // 即使初始化失败，也要确保有一个空的访问记录对象
@@ -153,10 +149,6 @@ export class LRUStrategy implements ICleanupStrategy {
 
     // 异步保存访问记录，避免阻塞主线程
     this.saveAccessRecordsDebounced();
-
-    if (this.config.debug) {
-      console.log(`[LRU] Recorded access for key: ${key}${value ? ` (${Utils.formatDataSize(Utils.estimateDataSize(value))})` : ''}`);
-    }
 
     return true; // 成功记录访问
   }
@@ -429,11 +421,7 @@ export class LRUStrategy implements ICleanupStrategy {
         this.accessRecords = Utils.decompressAccessRecords(data);
 
         // 验证访问记录的完整性
-        if (this.validateAccessRecords()) {
-          if (this.config.debug) {
-            console.log(`[LRU] Loaded ${Object.keys(this.accessRecords).length} access records`);
-          }
-        } else {
+        if (!this.validateAccessRecords()) {
           // 访问记录损坏，触发重建
           console.warn('[LRU] Access records corrupted, rebuilding...');
           this.rebuildAccessRecords();
@@ -593,13 +581,6 @@ export class LRUStrategy implements ICleanupStrategy {
       // 如果是调试模式，保存调试信息
       if (this.config.debug && result.debug) {
         await this.storageAdapter.setItem(this.debugRecordsKey, result.debug);
-
-        // console.log(`[LRU] Saved access records with compression:`);
-        // const debugInfo = JSON.parse(result.debug);
-        // console.log(`  - Original: ${debugInfo.originalCount} records`);
-        // console.log(`  - Compressed: ${debugInfo.compressedCount} records`);
-        // console.log(`  - Size reduction: ${debugInfo.compressionRatio}`);
-        // console.log(`  - Storage size: ${Utils.formatBytes(result.compressed.length)}`);
       }
     } catch (error) {
       console.warn('[LRU] Failed to save access records:', error);

@@ -1,10 +1,10 @@
 import BasicExample from './BasicExample'
-import LibExample from './LibExample'
+// import LibExample from './LibExample'
 
 export default function App() {
   return (
     <>
-      <LibExample />
+      {/* <LibExample /> */}
       <BasicExample />
     </>
   )
