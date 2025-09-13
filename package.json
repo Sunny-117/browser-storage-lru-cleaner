@@ -7,6 +7,7 @@
   "packageManager": "pnpm@10.9.0",
   "scripts": {
     "sdk:dev": "tsdown --watch",
+    "dev:robuild": "robuild",
     "dev": "turbo run sdk:dev playground:dev --parallel",
     "build": "tsdown",
     "prepublish": "pnpm build",
