@@ -1,6 +1,27 @@
 # Changelog
 
 
+## v0.0.18
+
+[compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.17...v0.0.18)
+
+### 🚀 Enhancements
+
+- CleanupThreshold default 1 ([8fb79ef](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/8fb79ef))
+
+### 🔥 Performance
+
+- ⚡️ build by robuild ([b2bd5d9](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/b2bd5d9))
+
+### 🏡 Chore
+
+- 🤖 remove logs ([dd75f2b](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/dd75f2b))
+- Playground config ([de619d2](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/de619d2))
+
+### ❤️ Contributors
+
+- Sunny-117 <zhiqiangfu6@gmail.com>
+
 ## v0.0.17
 
 [compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.16...v0.0.17)
