@@ -7,9 +7,10 @@
   "packageManager": "pnpm@10.9.0",
   "scripts": {
     "sdk:dev": "tsdown --watch",
-    "dev:robuild": "robuild",
     "dev": "turbo run sdk:dev playground:dev --parallel",
     "build": "tsdown",
+    "dev:robuild": "robuild",
+    "build:robuild": "robuild",
     "prepublish": "pnpm build",
     "release": "changelogen --release && pnpm publish",
     "commit": "git-cz",
