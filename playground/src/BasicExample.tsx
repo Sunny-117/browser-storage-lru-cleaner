@@ -2,12 +2,9 @@
 import { useState, useEffect } from 'react';
 import { createLocalStorageCleaner } from 'browser-storage-lru-cleaner';
 
-// TODO：BUG：很久没访问的，插入最新的会被直接清楚，导致数据丢失。
-// TODO：手动清理key后，刷新页面，元数据没有更新，还是记录了之前老数据。可能记录的老数据导致了第一个bug
 // 创建清理器实例 - 使用很小的容量便于快速看到清理效果
 const cleaner = createLocalStorageCleaner({
     maxStorageSize: 10 * 1024, // 10KB - 很小的容量
-    cleanupThreshold: 0.7, // 70%时开始清理
     autoCleanup: true,
     debug: true,
     enableTimeBasedCleanup: false, // 启用基于时间的清理

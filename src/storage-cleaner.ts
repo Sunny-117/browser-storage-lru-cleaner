@@ -13,7 +13,7 @@ import { Utils } from './utils';
  */
 const DEFAULT_CONFIG: IStorageCleanerConfig = {
   maxStorageSize: 5 * 1024 * 1024, // 5MB
-  cleanupThreshold: 0.8, // 80%
+  cleanupThreshold: 1, // 100%
   maxAccessAge: 7 * 24 * 60 * 60 * 1000, // 7天
   autoCleanup: true,
   debug: false,
