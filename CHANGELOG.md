@@ -1,6 +1,24 @@
 # Changelog
 
 
+## v0.0.19
+
+[compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.18...v0.0.19)
+
+### 🚀 Enhancements
+
+- **build:** Robuild ([00c82e0](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/00c82e0))
+- 🎸 超出限额直接clear ([7a51887](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/7a51887))
+
+### 🏡 Chore
+
+- **release:** V0.0.18 ([f913916](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/f913916))
+- Robuild script ([bd47940](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/bd47940))
+
+### ❤️ Contributors
+
+- Sunny-117 <zhiqiangfu6@gmail.com>
+
 ## v0.0.18
 
 [compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.17...v0.0.18)
