@@ -130,14 +130,10 @@ export class StorageCleaner {
         if (prop === 'setItem') {
           return function(key: string, value: string) {
             // 智能插入检查 - 优先进行，如果拒绝则不做任何操作
-            if (self.config.debug) {
-              console.log(self.config.unimportantKeys, 'self.config.unimportantKeys')
-            }
             if (self.config.unimportantKeys && self.config.unimportantKeys.length > 0) {
               // 检查是否应该拒绝插入（不重要的大数据且空间不足）
               const shouldReject = self.shouldRejectInsertion(key);
               if (shouldReject) {
-                // TODO: 可以增加业务埋点 暴露log接口，统计收益
                 if (self.config.debug) {
                   console.log(`[StorageCleaner] 拒绝插入不重要数据: ${key} (${Utils.formatDataSize(Utils.estimateDataSize(value))})`);
                 }

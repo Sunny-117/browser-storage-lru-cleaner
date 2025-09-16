@@ -15,6 +15,7 @@ import { createLocalStorageCleaner } from 'browser-storage-lru-cleaner';
 
 const cleaner = createLocalStorageCleaner({
     maxStorageSize: 3 * 1024 * 1024, // 3MB - 较大的容量便于测试
+    debug: true,
     unimportantKeys: ['preRecordStorage', 'preRecordStorageOld'] // 不重要的keys（简单字符串匹配，智能插入自动处理）
 });
 

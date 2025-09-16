@@ -30,6 +30,25 @@ export class LocalStorageAdapter implements IStorageAdapter {
     try {
       this.originalLocalStorage.setItem(key, value);
     } catch (error) {
+      // 检查是否是存储配额超限错误
+      if (this.isQuotaExceededError(error)) {
+        console.warn(`localStorage quota exceeded when setting "${key}", attempting to clear storage and retry`);
+
+        try {
+          // 清空localStorage
+          this.originalLocalStorage.clear();
+          console.log('localStorage cleared due to quota exceeded');
+
+          // 重试设置
+          this.originalLocalStorage.setItem(key, value);
+          console.log(`Successfully set "${key}" after clearing storage`);
+          return;
+        } catch (retryError) {
+          console.error(`Failed to set "${key}" even after clearing storage:`, retryError);
+          throw retryError;
+        }
+      }
+
       console.warn(`Failed to set item "${key}" in localStorage:`, error);
       throw error;
     }
@@ -166,5 +185,24 @@ export class LocalStorageAdapter implements IStorageAdapter {
    */
   getOriginalStorage(): Storage {
     return this.originalLocalStorage;
+  }
+
+  /**
+   * 检查是否是存储配额超限错误
+   */
+  private isQuotaExceededError(error: any): boolean {
+    return error && (
+      error.name === 'QuotaExceededError' ||
+      error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+      error.code === 22 ||
+      error.code === 1014 ||
+      // 检查错误消息中的关键词
+      (error.message && (
+        error.message.toLowerCase().includes('quota') ||
+        error.message.toLowerCase().includes('storage') ||
+        error.message.toLowerCase().includes('exceeded') ||
+        error.message.toLowerCase().includes('full')
+      ))
+    );
   }
 }

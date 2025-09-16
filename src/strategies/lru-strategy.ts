@@ -63,7 +63,14 @@ export class LRUStrategy implements ICleanupStrategy {
       this.initializeExistingData();
     } catch (error) {
       console.error('[LRU] Failed to initialize strategy:', error);
-      // 即使初始化失败，也要确保有一个空的访问记录对象
+
+      // 检查是否是存储配额超限错误
+      if (this.isQuotaExceededError(error)) {
+        console.warn('[LRU] Storage quota exceeded during initialization, clearing all storage');
+        await this.clearAllStorage();
+      }
+
+      // 确保有一个空的访问记录对象
       this.accessRecords = {};
     }
   }
@@ -584,6 +591,12 @@ export class LRUStrategy implements ICleanupStrategy {
       }
     } catch (error) {
       console.warn('[LRU] Failed to save access records:', error);
+
+      // 检查是否是存储配额超限错误
+      if (this.isQuotaExceededError(error)) {
+        console.warn('[LRU] Storage quota exceeded when saving access records, clearing all storage');
+        await this.clearAllStorage();
+      }
     }
   }
 
@@ -1039,4 +1052,42 @@ export class LRUStrategy implements ICleanupStrategy {
       rebuiltCount: afterStats.trackedKeys - beforeStats.trackedKeys
     };
   }
+
+  /**
+   * 检查是否是存储配额超限错误
+   */
+  private isQuotaExceededError(error: any): boolean {
+    return error && (
+      error.name === 'QuotaExceededError' ||
+      error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+      error.code === 22 ||
+      error.code === 1014 ||
+      // 检查错误消息中的关键词
+      (error.message && (
+        error.message.toLowerCase().includes('quota') ||
+        error.message.toLowerCase().includes('storage') ||
+        error.message.toLowerCase().includes('exceeded') ||
+        error.message.toLowerCase().includes('full')
+      ))
+    );
+  }
+
+  /**
+   * 清空所有存储
+   */
+  private async clearAllStorage(): Promise<void> {
+    try {
+      // 如果适配器支持清空操作，直接清空所有存储
+      if (typeof (this.storageAdapter as any).clear === 'function') {
+        (this.storageAdapter as any).clear();
+        console.log('[LRU] All storage cleared successfully');
+      } else {
+        console.warn('[LRU] Storage adapter does not support clear operation');
+      }
+    } catch (error) {
+      console.error('[LRU] Failed to clear storage:', error);
+    }
+  }
+
+
 }
