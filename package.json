@@ -1,6 +1,6 @@
 {
   "name": "browser-storage-lru-cleaner",
-  "version": "0.0.19",
+  "version": "0.0.20",
   "description": "A TypeScript SDK for automatic browser storage cleanup using LRU algorithm",
   "main": "dist/index.mjs",
   "types": "dist/index.d.mts",
@@ -47,6 +47,11 @@
     "commitizen": {
       "path": "git-cz"
     }
+  },
+  "homepage": "https://github.com/Sunny-117/browser-storage-lru-cleaner#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sunny-117/browser-storage-lru-cleaner.git"
   },
   "git-cz": {
     "maxHeaderWidth": 100,

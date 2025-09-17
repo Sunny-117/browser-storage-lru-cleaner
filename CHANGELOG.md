@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.0.20
+
+[compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.19...v0.0.20)
+
+### 🏡 Chore
+
+- 🤖 enQuotaExceeded ([0872df8](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/0872df8))
+
+### ❤️ Contributors
+
+- Sunny-117 <zhiqiangfu6@gmail.com>
+
 ## v0.0.19
 
 [compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.18...v0.0.19)
