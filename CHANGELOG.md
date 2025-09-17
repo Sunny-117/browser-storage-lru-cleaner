@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.0.21
+
+[compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.20...v0.0.21)
+
 ## v0.0.20
 
 [compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.19...v0.0.20)
