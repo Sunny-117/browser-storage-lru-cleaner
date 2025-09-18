@@ -118,7 +118,7 @@ export class StorageCleaner {
     const proxiedStorage = new Proxy(this.originalStorage, {
       get(target, prop, receiver) {
         if (prop === 'getItem') {
-          return function(key: string) {
+          return function (key: string) {
             const result = target.getItem(key);
             if (result !== null) {
               self.strategy.recordAccess(key);
@@ -128,7 +128,7 @@ export class StorageCleaner {
         }
 
         if (prop === 'setItem') {
-          return function(key: string, value: string) {
+          return function (key: string, value: string) {
             // 智能插入检查 - 优先进行，如果拒绝则不做任何操作
             if (self.config.unimportantKeys && self.config.unimportantKeys.length > 0) {
               // 检查是否应该拒绝插入（不重要的大数据且空间不足）
@@ -146,7 +146,19 @@ export class StorageCleaner {
               self.checkAndCleanup(Utils.estimateDataSize(key) + Utils.estimateDataSize(value));
             }
 
-            target.setItem(key, value);
+            try {
+              target.setItem(key, value);
+            } catch (error) {
+              if (typeof target.clear === 'function') {
+                target.clear();
+                // 重试设置
+                try {
+                  target.setItem(key, value);
+                } catch (retryError) {
+                  throw '重新设置失败';
+                }
+              }
+            }
 
             // 记录访问
             self.strategy.recordAccess(key, value);
@@ -156,14 +168,14 @@ export class StorageCleaner {
         }
 
         if (prop === 'removeItem') {
-          return function(key: string) {
+          return function (key: string) {
             target.removeItem(key);
             self.updateStats();
           };
         }
 
         if (prop === 'clear') {
-          return function() {
+          return function () {
             target.clear();
             self.updateStats();
           };
@@ -174,7 +186,7 @@ export class StorageCleaner {
         }
 
         if (prop === 'key') {
-          return function(index: number) {
+          return function (index: number) {
             return target.key(index);
           };
         }
@@ -587,7 +599,7 @@ export class StorageCleaner {
 
     // 如果有损坏记录或缺失过多，进行重建
     if (healthCheck.corruptedRecords > 0 ||
-        healthCheck.missingRecords > healthCheck.totalKeys * 0.5) {
+      healthCheck.missingRecords > healthCheck.totalKeys * 0.5) {
       const rebuildResult = this.rebuildAccessRecords();
       return {
         healthCheck,
