@@ -6,7 +6,7 @@
   "types": "dist/index.d.mts",
   "packageManager": "pnpm@10.9.0",
   "scripts": {
-    "sdk:dev": "robuild --stub",
+    "sdk:dev": "robuild --watch",
     "dev": "turbo run sdk:dev playground:dev --parallel",
     "build": "robuild",
     "prepublish": "pnpm build",
@@ -36,7 +36,7 @@
     "git-cz": "^4.9.0",
     "http-server": "^14.1.1",
     "husky": "^8.0.0",
-    "robuild": "^0.0.5",
+    "robuild": "^0.0.7",
     "turbo": "^2.5.6",
     "typescript": "^5.0.0"
   },
