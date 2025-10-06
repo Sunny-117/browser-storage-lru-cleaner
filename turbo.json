@@ -6,13 +6,6 @@
     "tasks": {
         "sdk:dev": {
             "cache": false,
-            "persistent": true,
-            "dependsOn": [
-                "dev:robuild"
-            ]
-        },
-        "dev:robuild": {
-            "cache": false,
             "persistent": true
         },
         "playground:dev": {
