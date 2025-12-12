@@ -210,8 +210,13 @@ export class Utils {
    * 检查是否为系统保留键
    */
   static isSystemKey(key: string): boolean {
-    return key.startsWith('__') && key.endsWith('__');
+    try {
+      return key.startsWith('__') && key.endsWith('__');
+    } catch (error) {
+      return false;
+    }
   }
+
 
   /**
    * 检查key是否匹配不重要keys列表（简单字符串匹配）
