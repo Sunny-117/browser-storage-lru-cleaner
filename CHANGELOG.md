@@ -1,6 +1,24 @@
 # Changelog
 
 
+## v0.0.23
+
+[compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.22...v0.0.23)
+
+### 🩹 Fixes
+
+- Turbo.json ([815bfe8](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/815bfe8))
+- 增强 isSystemKey 方法的错误处理 ([d718e3d](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/d718e3d))
+
+### 🏡 Chore
+
+- Auto open ([87fd80b](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/87fd80b))
+- **release:** V0.0.22 ([6d286e7](https://github.com/Sunny-117/browser-storage-lru-cleaner/commit/6d286e7))
+
+### ❤️ Contributors
+
+- Sunny-117 <zhiqiangfu6@gmail.com>
+
 ## v0.0.22
 
 [compare changes](https://github.com/Sunny-117/browser-storage-lru-cleaner/compare/v0.0.22...v0.0.22)
