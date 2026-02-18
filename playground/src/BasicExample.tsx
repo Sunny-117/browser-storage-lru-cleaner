@@ -8,7 +8,7 @@ const cleaner = createLocalStorageCleaner({
     autoCleanup: true,
     debug: true,
     enableTimeBasedCleanup: true, // 启用基于时间的清理
-    timeCleanupThreshold: 10 / (24 * 60 * 60),
+    // timeCleanupThreshold: 10 / (24 * 60 * 60),
     cleanupOnInsert: true, // 插入时触发清理
     unimportantKeys: ['recording', 'temp', 'cache'] // 不重要的keys（简单字符串匹配，智能插入自动处理）
 });
