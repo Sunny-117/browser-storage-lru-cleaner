@@ -114,7 +114,7 @@ EOF
 
 # 9. 初始化 git 仓库
 print_info "初始化部署仓库..."
-git init
+git init -b main
 git add -A
 
 # 10. 提交更改
