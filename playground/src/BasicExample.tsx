@@ -3,21 +3,21 @@ import { useState, useEffect } from 'react';
 import { createLocalStorageCleaner } from 'browser-storage-lru-cleaner';
 
 // 创建清理器实例 - 使用很小的容量便于快速看到清理效果
-// const cleaner = createLocalStorageCleaner({
-//     maxStorageSize: 10 * 1024, // 10KB - 很小的容量
-//     autoCleanup: true,
-//     debug: true,
-//     enableTimeBasedCleanup: true, // 启用基于时间的清理
-//     timeCleanupThreshold: 10 / (24 * 60 * 60),
-//     cleanupOnInsert: true, // 插入时触发清理
-//     unimportantKeys: ['recording', 'temp', 'cache'] // 不重要的keys（简单字符串匹配，智能插入自动处理）
-// });
-
 const cleaner = createLocalStorageCleaner({
-    maxStorageSize: 3 * 1024 * 1024, // 3MB - 较大的容量便于测试
+    maxStorageSize: 10 * 1024, // 10KB - 很小的容量
+    autoCleanup: true,
     debug: true,
-    unimportantKeys: ['preRecordStorage', 'preRecordStorageOld'] // 不重要的keys（简单字符串匹配，智能插入自动处理）
+    enableTimeBasedCleanup: true, // 启用基于时间的清理
+    timeCleanupThreshold: 10 / (24 * 60 * 60),
+    cleanupOnInsert: true, // 插入时触发清理
+    unimportantKeys: ['recording', 'temp', 'cache'] // 不重要的keys（简单字符串匹配，智能插入自动处理）
 });
+
+// const cleaner = createLocalStorageCleaner({
+//     maxStorageSize: 3 * 1024 * 1024, // 3MB - 较大的容量便于测试
+//     debug: true,
+//     unimportantKeys: ['preRecordStorage', 'preRecordStorageOld'] // 不重要的keys（简单字符串匹配，智能插入自动处理）
+// });
 
 export default function BasicExample() {
     const [logs, setLogs] = useState<string[]>([]);
