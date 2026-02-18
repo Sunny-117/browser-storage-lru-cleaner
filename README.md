@@ -2,11 +2,13 @@
 
 🧹 一个基于LRU算法的浏览器存储自动清理SDK，支持localStorage和IndexedDB，通过代理模式实现业务无感知的自动清理。
 
+> ⚠️ **注意**: IndexedDB 支持目前还不稳定，仅供实验性使用。**生产环境请使用 localStorage 清理器**。
+
 ## 🚀 特性
 
 - **🔄 LRU算法**: 内置最近最少使用算法，智能清理不常用数据
 - **🔌 可扩展**: 支持自定义清理策略，算法与SDK解耦
-- **📦 多存储支持**: 同时支持localStorage和IndexedDB
+- **📦 多存储支持**: 同时支持localStorage和IndexedDB（IndexedDB 为实验性支持）
 - **🎭 代理模式**: 通过Proxy和Object.defineProperty实现透明代理
 - **⚡ 业务无感知**: 自动拦截存储操作，无需修改业务代码
 - **📊 智能清理**: 根据配置的容量阈值自动触发清理
@@ -60,7 +62,9 @@ localStorage.setItem('user_data', JSON.stringify({ name: 'John' }));
 localStorage.getItem('user_data'); // 会被记录访问
 ```
 
-### IndexedDB 清理器
+### IndexedDB 清理器（实验性）
+
+> ⚠️ IndexedDB 支持目前还不稳定，不建议在生产环境使用。
 
 ```typescript
 import { createIndexedDBCleaner } from 'browser-storage-lru-cleaner';
@@ -585,7 +589,9 @@ export default defineComponent({
 });
 ```
 
-### IndexedDB使用示例
+### IndexedDB使用示例（实验性）
+
+> ⚠️ IndexedDB 支持目前还不稳定，不建议在生产环境使用。
 
 ```typescript
 import { createIndexedDBCleaner } from 'browser-storage-lru-cleaner';
